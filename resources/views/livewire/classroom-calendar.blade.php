@@ -1,10 +1,3 @@
-@once
-<link href='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.15/main.min.css' rel='stylesheet' />
-<link href='https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@6.1.15/main.min.css' rel='stylesheet' />
-<link href='https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.15/main.min.css' rel='stylesheet' />
-<link href='https://cdn.jsdelivr.net/npm/@fullcalendar/resource-timeline@6.1.15/main.min.css' rel='stylesheet' />
-@endonce
-
 <div class="w-full p-6" wire:ignore>
     <div class="mb-4">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Classroom Schedule</h2>
