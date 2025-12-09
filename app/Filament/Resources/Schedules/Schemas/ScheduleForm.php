@@ -9,6 +9,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 
 class ScheduleForm
 {
@@ -17,7 +18,9 @@ class ScheduleForm
         return $schema
             ->components([
                 Select::make('room_id')
-                    ->relationship('room', 'room_number')
+                    ->relationship('room', 'room_number', modifyQueryUsing: function (Builder $query) {
+                        return $query->where('is_active', true);
+                    })
                     ->prefix("Room: ")
                     ->required(),
                 Select::make('requester_id')
