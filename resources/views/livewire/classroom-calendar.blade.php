@@ -1,4 +1,7 @@
 <div class="w-full p-6" wire:ignore>
+    @auth
+        <div class="mb-4 font-bold text-gray-900 dark:text-gray-100">You are Logged in</div>
+    @endauth
     <div class="mb-4">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">PUP Computer Engineering Classrooms Schedule</h2>
         <p class="text-gray-600 dark:text-gray-400">View the latest schedules for all classrooms</p>
