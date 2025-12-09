@@ -16,7 +16,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('room_id')->constrained('rooms', 'id');
             $table->foreignId('requester_id')->nullable()->constrained('users', 'id');
-            $table->foreignId('approver_id')->constrained('users', 'id');
+            $table->foreignId('approver_id')->nullable()->constrained('users', 'id');
             $table->string('title');
             $table->string('block')->nullable();
             $table->string('status')->default(ScheduleStatus::Pending->value);
