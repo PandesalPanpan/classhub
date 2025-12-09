@@ -19,7 +19,7 @@ return new class extends Migration
             $table->foreignId('approver_id')->constrained('users', 'id');
             $table->string('title');
             $table->string('block')->nullable();
-            $table->status('status')->default(ScheduleStatus::Pending->value);
+            $table->string('status')->default(ScheduleStatus::Pending->value);
             $table->dateTime('start_time')->index();
             $table->dateTime('end_time')->index();
             $table->text('remarks')->nullable();

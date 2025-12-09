@@ -16,7 +16,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('room_id')->constrained('rooms', 'id');
             $table->string('slot_number')->unique();
-            $table->status('status')->default(KeyStatus::Disabled->value);
+            $table->string('status')->default(KeyStatus::Disabled->value);
             $table->timestamps();
         });
     }
