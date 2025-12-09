@@ -10,6 +10,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
@@ -28,45 +29,48 @@ class RequestScheduleForm
                 ->required(),
             TextInput::make('title')
                 ->required(),
-            DateTimePicker::make('start_time')
-                ->required()
-                ->seconds(false)
-                ->minutesStep(30)
-                ->native(false)
-                ->live(onBlur: true)
-                ->afterStateUpdated(function (Get $get, Set $set) {
-                    static::updateEndTime($get, $set);
-                }),
 
-            Select::make('duration_minutes')
-                ->label('Duration')
-                ->options([
-                    30 => '30 minutes',
-                    60 => '1 hour',
-                    90 => '1.5 hours',
-                    120 => '2 hours',
-                    150 => '2.5 hours',
-                    180 => '3 hours',
+            Section::make('Schedule')
+                ->schema([
+                    DateTimePicker::make('start_time')
+                        ->required()
+                        ->seconds(false)
+                        ->minutesStep(30)
+                        ->native(false)
+                        ->displayFormat('F j Y g:iA')
+                        ->format('Y-m-d H:i:s')
+                        ->live(onBlur: true)
+                        ->columnSpan(1)
+                        ->afterStateUpdated(function (Get $get, Set $set) {
+                            static::updateEndTime($get, $set);
+                        }),
+
+                    DateTimePicker::make('end_time')
+                        ->label('End Time')
+                        ->native(false)
+                        ->displayFormat('F j Y g:iA')
+                        ->disabled()
+                        ->dehydrated(false)
+                        ->columnSpan(1),
+
+                    Select::make('duration_minutes')
+                        ->label('Duration')
+                        ->options([
+                            30 => '30 minutes',
+                            60 => '1 hour',
+                            90 => '1.5 hours',
+                            120 => '2 hours',
+                            150 => '2.5 hours',
+                            180 => '3 hours',
+                        ])
+                        ->default(60)
+                        ->required()
+                        ->live()
+                        ->afterStateUpdated(function (Get $get, Set $set) {
+                            static::updateEndTime($get, $set);
+                        }),
                 ])
-                ->default(60)
-                ->required()
-                ->live()
-                ->afterStateUpdated(function (Get $get, Set $set) {
-                    static::updateEndTime($get, $set);
-                }),
-
-            TextEntry::make('end_time')
-                ->label('Ends at')
-                ->state(function (Get $get) {
-                    $start = $get('start_time');
-                    $duration = $get('duration_minutes');
-
-                    if (! $start || ! $duration) {
-                        return '—';
-                    }
-
-                    return Carbon::parse($start)->addMinutes($duration)->format('Y-m-d H:i');
-                }),
+                ->columns(2),
         ];
     }
 
