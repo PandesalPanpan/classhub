@@ -8,3 +8,4 @@ use App\Livewire\ClassroomCalendar;
 // });
 
 Route::get('/', ClassroomCalendar::class)->name('calendar');
+Route::get('/app', fn() => redirect('/'));
