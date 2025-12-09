@@ -7,6 +7,12 @@
         "dev": "vite"
     },
     "devDependencies": {
+        "@fullcalendar/core": "^6.1.15",
+        "@fullcalendar/daygrid": "^6.1.15",
+        "@fullcalendar/interaction": "^6.1.15",
+        "@fullcalendar/resource": "^6.1.15",
+        "@fullcalendar/resource-timeline": "^6.1.15",
+        "@fullcalendar/timegrid": "^6.1.15",
         "@tailwindcss/vite": "^4.0.0",
         "axios": "^1.11.0",
         "concurrently": "^9.0.1",
