@@ -9,3 +9,184 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* ---------- FullCalendar base variables ---------- */
+:root {
+    --fc-page-bg-color: #fdfdfc;
+    --fc-neutral-bg-color: #f7f7f5;
+    --fc-neutral-text-color: #1b1b18;
+    --fc-border-color: rgba(0, 0, 0, 0.08);
+    --fc-event-text-color: #ffffff;
+}
+
+:root.dark {
+    --fc-page-bg-color: #0a0a0a;
+    --fc-neutral-bg-color: #111827;
+    --fc-neutral-text-color: #e5e7eb;
+    --fc-border-color: rgba(255, 255, 255, 0.14);
+    --fc-event-text-color: #ffffff;
+}
+
+/* ---------- Calendar surface ---------- */
+#classroom-calendar {
+    font-family: var(--font-sans);
+    background-color: var(--fc-page-bg-color);
+}
+
+/* Header + toolbar */
+#classroom-calendar .fc-toolbar {
+    gap: 0.5rem;
+    color: var(--fc-neutral-text-color);
+}
+
+#classroom-calendar .fc-toolbar-title {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--fc-neutral-text-color);
+}
+
+#classroom-calendar .fc-button {
+    background-color: #e5e7eb;
+    color: #111827;
+    border: 1px solid var(--fc-border-color);
+    border-radius: 0.5rem;
+    padding: 0.25rem 0.6rem;
+    font-weight: 600;
+}
+
+#classroom-calendar .fc-button:hover {
+    background-color: #d1d5db;
+}
+
+#classroom-calendar .fc-button-active {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+    color: #ffffff;
+}
+
+/* Column headers */
+#classroom-calendar .fc-col-header-cell,
+#classroom-calendar .fc-timeline-header-cell {
+    background-color: var(--fc-neutral-bg-color);
+    border-color: var(--fc-border-color);
+}
+
+#classroom-calendar .fc-col-header-cell-cushion,
+#classroom-calendar .fc-timeline-header-cell-cushion,
+#classroom-calendar .fc-timegrid-slot-label {
+    color: var(--fc-neutral-text-color);
+    font-weight: 600;
+}
+
+/* Resource area */
+#classroom-calendar .fc-resource-area,
+#classroom-calendar .fc-datagrid {
+    background-color: var(--fc-neutral-bg-color);
+    border-color: var(--fc-border-color);
+}
+
+#classroom-calendar .fc-datagrid-cell,
+#classroom-calendar .fc-resource-cell {
+    background-color: var(--fc-neutral-bg-color);
+    color: var(--fc-neutral-text-color);
+    border-color: var(--fc-border-color);
+}
+
+#classroom-calendar .fc-datagrid-cell-main,
+#classroom-calendar .fc-resource-cell-text,
+#classroom-calendar .fc-datagrid-cell-cushion,
+#classroom-calendar .fc-resource-cell-main,
+#classroom-calendar .fc-resource-cell-content,
+#classroom-calendar .fc-resource-cell-frame {
+    color: var(--fc-neutral-text-color) !important;
+    font-weight: 600 !important;
+    font-size: 13px;
+}
+
+#classroom-calendar .fc-resource-cell-frame {
+    background-color: var(--fc-neutral-bg-color);
+}
+
+#classroom-calendar .fc-datagrid-cell-cushion {
+    background-color: var(--fc-neutral-bg-color);
+}
+
+#classroom-calendar .fc-datagrid-cell-cushion {
+    padding: 0.45rem 0.5rem;
+}
+
+/* Grid borders */
+#classroom-calendar .fc-theme-standard td,
+#classroom-calendar .fc-theme-standard th {
+    border-color: var(--fc-border-color);
+}
+
+/* Events */
+#classroom-calendar .fc-event {
+    border-radius: 0.5rem;
+    border: none;
+    color: var(--fc-event-text-color);
+    padding: 0.25rem 0.4rem;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    background-color: var(--fc-event-bg-color, #3b82f6);
+}
+
+#classroom-calendar .fc-event .fc-event-title {
+    font-size: 12px;
+    line-height: 1.3;
+    font-weight: 700;
+    color: var(--fc-event-text-color);
+    white-space: normal;
+}
+
+/* Now indicator */
+#classroom-calendar .fc-now-indicator-line {
+    border-color: #ef4444;
+}
+
+#classroom-calendar .fc-now-indicator-arrow {
+    border-color: #ef4444;
+}
+
+/* Dark-mode specific refinements */
+:where(.dark) #classroom-calendar .fc-toolbar {
+    color: #e5e7eb;
+}
+
+:where(.dark) #classroom-calendar .fc-toolbar-title {
+    color: #e5e7eb;
+}
+
+:where(.dark) #classroom-calendar .fc-button {
+    background-color: #1f2937;
+    border-color: rgba(255, 255, 255, 0.14);
+    color: #e5e7eb;
+}
+
+:where(.dark) #classroom-calendar .fc-button:hover {
+    background-color: #2d3748;
+}
+
+:where(.dark) #classroom-calendar .fc-button-active {
+    background-color: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+}
+
+:where(.dark) #classroom-calendar .fc-datagrid-cell,
+:where(.dark) #classroom-calendar .fc-resource-cell {
+    background-color: #111827;
+    color: #e5e7eb;
+}
+
+:where(.dark) #classroom-calendar .fc-col-header-cell,
+:where(.dark) #classroom-calendar .fc-timeline-header-cell {
+    background-color: #0f172a;
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+:where(.dark) #classroom-calendar .fc-col-header-cell-cushion,
+:where(.dark) #classroom-calendar .fc-timeline-header-cell-cushion,
+:where(.dark) #classroom-calendar .fc-timegrid-slot-label {
+    color: #e5e7eb;
+}

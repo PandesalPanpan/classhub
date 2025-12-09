@@ -33,21 +33,21 @@ window.initClassroomCalendar = function(rooms, events) {
         dayMaxEvents: true,
         weekends: true,
         nowIndicator: true,
-        resourceLabelContent: function(arg) {
-            return arg.resource.title;
-        },
-        eventContent: function(arg) {
-            return {
-                html: '<div class="fc-event-title">' + arg.event.title + '</div>'
-            };
-        },
+        // resourceLabelContent: function(arg) {
+        //     return arg.resource.title;
+        // },
+        // eventContent: function(arg) {
+        //     return {
+        //         html: '<div class="fc-event-title">' + arg.event.title + '</div>'
+        //     };
+        // },
     });
 
     calendar.render();
     
     // Apply custom styles after calendar renders with a slight delay
     setTimeout(() => {
-        applyCalendarStyles();
+        // applyCalendarStyles();
     }, 100);
     
     // Re-apply styles when calendar updates
@@ -75,33 +75,33 @@ function applyCalendarStyles() {
         fcElement.style.setProperty('--fc-border-color', 'rgba(255, 255, 255, 0.2)');
         
         // Style resource cells (room labels) - using FullCalendar classes
-        const resourceCells = calendarEl.querySelectorAll('.fc-resource-cell, .fc-datagrid-cell');
-        resourceCells.forEach(cell => {
-            cell.style.cssText += 'background-color: #1a1a1a !important; color: #ffffff !important;';
+        // const resourceCells = calendarEl.querySelectorAll('.fc-resource-cell, .fc-datagrid-cell');
+        // resourceCells.forEach(cell => {
+        //     cell.style.cssText += 'background-color: #1a1a1a !important; color: #ffffff !important;';
             
-            // Target all possible text containers
-            const allElements = cell.querySelectorAll('*');
-            allElements.forEach(el => {
-                el.style.cssText += 'color: #ffffff !important;';
-                if (el.tagName === 'SPAN' || el.tagName === 'DIV' || el.tagName === 'TD') {
-                    el.style.cssText += 'font-weight: 600 !important;';
-                }
-            });
-        });
+        //     // Target all possible text containers
+        //     const allElements = cell.querySelectorAll('*');
+        //     allElements.forEach(el => {
+        //         el.style.cssText += 'color: #ffffff !important;';
+        //         if (el.tagName === 'SPAN' || el.tagName === 'DIV' || el.tagName === 'TD') {
+        //             el.style.cssText += 'font-weight: 600 !important;';
+        //         }
+        //     });
+        // });
         
         // Style resource cell text specifically (FullCalendar uses .fc-resource-cell-text or similar)
-        const resourceTexts = calendarEl.querySelectorAll(
-            '.fc-resource-cell-text, .fc-datagrid-cell-cushion, .fc-resource-cell-main, .fc-resource-cell-content, .fc-resource-cell-frame'
-        );
-        resourceTexts.forEach(text => {
-            text.style.cssText += 'color: #ffffff !important; font-weight: 600 !important;';
-        });
+        // const resourceTexts = calendarEl.querySelectorAll(
+        //     '.fc-resource-cell-text, .fc-datagrid-cell-cushion, .fc-resource-cell-main, .fc-resource-cell-content, .fc-resource-cell-frame'
+        // );
+        // resourceTexts.forEach(text => {
+        //     text.style.cssText += 'color: #ffffff !important; font-weight: 600 !important;';
+        // });
         
         // Style resource area
-        const resourceArea = calendarEl.querySelector('.fc-resource-area, .fc-datagrid');
-        if (resourceArea) {
-            resourceArea.style.cssText += 'background-color: #1a1a1a !important;';
-        }
+        // const resourceArea = calendarEl.querySelector('.fc-resource-area, .fc-datagrid');
+        // if (resourceArea) {
+        //     resourceArea.style.cssText += 'background-color: #1a1a1a !important;';
+        // }
         
         // Style column headers (time slots like 8am, 9am)
         const colHeaders = calendarEl.querySelectorAll('.fc-col-header-cell, .fc-timeline-header-cell');
