@@ -1,6 +1,6 @@
 <div class="w-full p-6" wire:ignore>
     <div class="mb-4">
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Classroom Schedule</h2>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">PUP Computer Engineering Classrooms Schedule</h2>
         <p class="text-gray-600 dark:text-gray-400">View the latest schedules for all classrooms</p>
     </div>
     

@@ -2,12 +2,13 @@
 
 namespace App\Livewire;
 
-use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\Attributes\Title;
 
-#[Layout('components.layouts.app')]
 class ClassroomCalendar extends Component
 {
+    
+    #[Title('Calendar')]
     public function render()
     {
         // Sample data for 9 rooms
@@ -105,4 +106,6 @@ class ClassroomCalendar extends Component
         ]);
     }
 }
+
+
 
