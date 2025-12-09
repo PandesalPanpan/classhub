@@ -5,9 +5,27 @@ namespace App\Models;
 use App\ScheduleStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Auth;
 
 class Schedule extends Model
 {
+
+    public function approve(): void
+    {
+        $this->update([
+            'status' => ScheduleStatus::Approved,
+            'approver_id' => Auth::id(),
+        ]);
+    }
+
+    public function reject(): void
+    {
+        $this->update([
+            'status' => ScheduleStatus::Rejected,
+            'approver_id' => Auth::id(),
+        ]);
+    }
+
     public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class, 'room_id', 'id');
