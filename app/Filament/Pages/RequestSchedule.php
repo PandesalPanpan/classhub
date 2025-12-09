@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Filament\Pages\Schemas\RequestScheduleForm;
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Pages\Page;
@@ -69,7 +70,22 @@ class RequestSchedule extends Page implements HasTable
                     ->label('Create Request')
                     ->icon('heroicon-o-plus')
                     ->color('success')
-                    ->schema(RequestScheduleForm::schema()),
+                    ->schema(RequestScheduleForm::schema())
+                    ->mutateDataUsing(function (array $data): array {
+                        $data['requester_id'] = Auth::id();
+
+                        if (isset($data['start_time']) && isset($data['duration_minutes'])) {
+                            $start = \Carbon\Carbon::parse($data['start_time']);
+                            $data['end_time'] = $start->copy()->addMinutes($data['duration_minutes'])->format('Y-m-d H:i:s');
+                        }
+
+                        return $data;
+                    })
+                    ->action(function (array $data) {
+                        unset($data['duration_minutes']);
+                        
+                        Schedule::create($data);
+                    }),
             ]);
     }
 
