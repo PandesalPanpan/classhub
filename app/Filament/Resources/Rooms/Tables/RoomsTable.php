@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Rooms\Tables;
 
+use App\KeyStatus;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -21,6 +22,34 @@ class RoomsTable
                 IconColumn::make('is_active')
                     ->boolean(),
                 TextColumn::make('description')
+                    ->searchable(),
+                TextColumn::make('key.status')
+                    ->label('Key')
+                    // Keep state as status (enum/string) for color matching
+                    ->getStateUsing(fn($record) => $record->key?->status)
+                    ->formatStateUsing(function ($state, $record) {
+                        if (! $record->key) {
+                            return 'No key assigned';
+                        }
+
+                        $statusLabel = $state instanceof KeyStatus ? $state->value : (string) $state;
+
+                        return "{$record->key->slot_number} • {$statusLabel}";
+                    })
+                    ->badge()
+                    ->color(function (KeyStatus|string|null $state) {
+                        if (! $state) {
+                            return 'secondary';
+                        }
+
+                        $status = $state instanceof KeyStatus ? $state : KeyStatus::from($state);
+
+                        return match ($status) {
+                            KeyStatus::Used => 'danger',
+                            KeyStatus::Stored => 'warning',
+                            KeyStatus::Disabled => 'secondary',
+                        };
+                    })
                     ->searchable(),
                 TextColumn::make('created_at')
                     ->dateTime()
