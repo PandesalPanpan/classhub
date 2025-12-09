@@ -10,6 +10,7 @@ use App\Filament\Resources\Schedules\Schemas\ScheduleForm;
 use App\Filament\Resources\Schedules\Schemas\ScheduleInfolist;
 use App\Filament\Resources\Schedules\Tables\SchedulesTable;
 use App\Models\Schedule;
+use App\ScheduleStatus;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -54,5 +55,15 @@ class ScheduleResource extends Resource
             'view' => ViewSchedule::route('/{record}'),
             'edit' => EditSchedule::route('/{record}/edit'),
         ];
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        return Schedule::where('status', ScheduleStatus::Pending)->count();
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Pending schedules';
     }
 }
