@@ -1,4 +1,9 @@
-<div class="w-full p-6" wire:ignore>
+<div 
+    class="w-full p-6" 
+    wire:poll.10s
+    data-rooms="{{ json_encode($rooms) }}"
+    data-events="{{ json_encode($events) }}"
+>
     <div class="mb-4 flex items-center justify-between gap-4">
         <div>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">PUP Computer Engineering Classrooms Schedule</h2>
@@ -32,28 +37,67 @@
         </div>
     </div>
     
-    <div id="classroom-calendar" class="w-full"></div>
+    <div id="classroom-calendar" class="w-full" wire:ignore></div>
 </div>
 
 <script>
     (function() {
-        const rooms = @json($rooms);
-        const events = @json($events);
+        // Store calendar instance globally so we can update it
+        window.classroomCalendarInstance = null;
+        
+        const container = document.querySelector('[data-rooms][data-events]');
+        const rooms = container ? JSON.parse(container.dataset.rooms || '[]') : @json($rooms);
+        const events = container ? JSON.parse(container.dataset.events || '[]') : @json($events);
         
         function initCalendar() {
             if (typeof window.initClassroomCalendar === 'function') {
-                window.initClassroomCalendar(rooms, events);
+                window.classroomCalendarInstance = window.initClassroomCalendar(rooms, events);
             } else {
                 // Wait a bit for the script to load
                 setTimeout(initCalendar, 50);
             }
         }
         
+        // Expose update function globally for Alpine.js to call
+        window.updateClassroomCalendar = function(newRooms, newEvents) {
+            if (window.classroomCalendarInstance) {
+                // Update resources (rooms) if they changed
+                const currentResources = window.classroomCalendarInstance.getResources();
+                const resourceIds = currentResources.map(r => r.id).sort().join(',');
+                const newResourceIds = newRooms.map(r => r.id).sort().join(',');
+                
+                if (resourceIds !== newResourceIds) {
+                    window.classroomCalendarInstance.setOption('resources', newRooms);
+                }
+                
+                // Update events
+                window.classroomCalendarInstance.removeAllEvents();
+                if (newEvents && newEvents.length > 0) {
+                    window.classroomCalendarInstance.addEventSource(newEvents);
+                }
+            }
+        };
+        
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initCalendar);
         } else {
             initCalendar();
         }
+        
+        // Listen for Livewire component updates (from polling)
+        document.addEventListener('livewire:init', () => {
+            Livewire.hook('morph.updated', ({ el }) => {
+                // Check if this is our component by looking for the data attributes
+                const container = el.querySelector('[data-rooms][data-events]') || 
+                                 (el.hasAttribute('data-rooms') && el.hasAttribute('data-events') ? el : null);
+                
+                if (container && window.classroomCalendarInstance) {
+                    const rooms = JSON.parse(container.dataset.rooms || '[]');
+                    const events = JSON.parse(container.dataset.events || '[]');
+                    window.updateClassroomCalendar(rooms, events);
+                }
+            });
+        });
     })();
 </script>
 
