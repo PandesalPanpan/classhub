@@ -90,6 +90,11 @@ class SchedulesTable
                     ->label('Approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Approve Schedule')
+                    ->modalSubmitActionLabel('Approve')
+                    ->modalCancelActionLabel('Cancel')
+                    ->modalWidth('md')
                     ->visible(fn(Schedule $record) => $record->status === ScheduleStatus::Pending)
                     ->action(function (Schedule $record) {
                         $record->approve();
@@ -98,6 +103,11 @@ class SchedulesTable
                     ->label('Reject')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Reject Schedule')
+                    ->modalSubmitActionLabel('Reject')
+                    ->modalCancelActionLabel('Cancel')
+                    ->modalWidth('md')
                     ->visible(fn(Schedule $record) => $record->status === ScheduleStatus::Pending)
                     ->action(function (Schedule $record) {
                         $record->reject();
@@ -108,6 +118,11 @@ class SchedulesTable
                         ->label('Approve')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Approve Schedule')
+                        ->modalSubmitActionLabel('Approve')
+                        ->modalCancelActionLabel('Cancel')
+                        ->modalWidth('md')
                         ->action(function (Collection $records) {
                             $records->each(function (Schedule $record) {
                                 $record->approve();
@@ -117,6 +132,11 @@ class SchedulesTable
                         ->label('Reject')
                         ->icon('heroicon-o-x-circle')
                         ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Reject Schedule')
+                        ->modalSubmitActionLabel('Reject')
+                        ->modalCancelActionLabel('Cancel')
+                        ->modalWidth('md')
                         ->action(function (Collection $records) {
                             $records->each(function (Schedule $record) {
                                 $record->reject();
