@@ -46,14 +46,14 @@ window.initClassroomCalendar = function(rooms, events) {
     calendar.render();
     
     // Apply custom styles after calendar renders with a slight delay
-    setTimeout(() => {
-        // applyCalendarStyles();
-    }, 100);
+    // setTimeout(() => {
+    //    applyCalendarStyles();
+    // }, 100);
     
     // Re-apply styles when calendar updates
-    calendar.on('eventsSet', () => setTimeout(applyCalendarStyles, 50));
-    calendar.on('resourcesSet', () => setTimeout(applyCalendarStyles, 50));
-    calendar.on('viewDidMount', () => setTimeout(applyCalendarStyles, 50));
+    // calendar.on('eventsSet', () => setTimeout(applyCalendarStyles, 50));
+    // calendar.on('resourcesSet', () => setTimeout(applyCalendarStyles, 50));
+    // calendar.on('viewDidMount', () => setTimeout(applyCalendarStyles, 50));
     
     return calendar;
 };
