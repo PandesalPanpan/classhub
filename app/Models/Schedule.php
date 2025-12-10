@@ -45,6 +45,8 @@ class Schedule extends Model
     {
         return [
             'status' => ScheduleStatus::class,
+            'start_time' => 'datetime',
+            'end_time' => 'datetime',
         ];
     }
 }
