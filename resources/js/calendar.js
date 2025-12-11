@@ -17,13 +17,13 @@ window.initClassroomCalendar = function(rooms, events) {
         headerToolbar: {
             left: 'prev,next today',
             center: 'title',
-            right: 'resourceTimelineDay,resourceTimelineWeek,resourceTimelineMonth'
+            right: 'resourceTimelineDay'
         },
         resources: rooms,
         events: events,
         resourceAreaWidth: '10%',
         slotMinTime: '06:00:00',
-        slotMaxTime: '24:00:00',
+        slotMaxTime: '22:00:00',
         slotDuration: '00:30:00',
         height: 'auto',
         aspectRatio: 1.8,
