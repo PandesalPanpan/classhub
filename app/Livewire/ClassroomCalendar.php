@@ -31,22 +31,10 @@ class ClassroomCalendar extends Component
                     'resourceId' => "room-{$schedule->room->room_number}",
                     'title' => $schedule->title,
                     'start' => $schedule->start_time->toIso8601String(),
-                    'end' => $schedule->end_time->toIso8601String(),
-                    'backgroundColor' => '#3b82f6',
-                ];
+                    'end' => $schedule->end_time->toIso8601String(),                ];
             })
             ->toArray();
-
-        // $events[] = [
-        //     'id' => 'room-300',
-        //     'resourceId' => 'room-300',
-        //     'title' => 'Static Schedule',
-        //     'start' => now()->setTime(9, 0)->toIso8601String(),
-        //     'end' => now()->setTime(10, 30)->toIso8601String(),
-        //     'backgroundColor' => '#3b82f6',
-        // ];
-
-        // dd($events);
+            
         return view('livewire.classroom-calendar', [
             'rooms' => $rooms,
             'events' => $events,

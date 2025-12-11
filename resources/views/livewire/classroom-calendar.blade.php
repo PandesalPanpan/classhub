@@ -70,10 +70,13 @@
                     window.classroomCalendarInstance.setOption('resources', newRooms);
                 }
                 
-                // Update events
+                // Update events with hashed colors
+                const coloredEvents = window.withHashedColors
+                    ? window.withHashedColors(newEvents)
+                    : newEvents;
                 window.classroomCalendarInstance.removeAllEvents();
-                if (newEvents && newEvents.length > 0) {
-                    window.classroomCalendarInstance.addEventSource(newEvents);
+                if (coloredEvents && coloredEvents.length > 0) {
+                    window.classroomCalendarInstance.addEventSource(coloredEvents);
                 }
             }
         };
