@@ -14,7 +14,6 @@ class ClassroomCalendar extends Component
     public function render()
     {
         $rooms = Room::query()
-            ->with('key')
             ->get()
             ->map(fn($room) => [
                 'id' => "room-{$room->room_number}",
