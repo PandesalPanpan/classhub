@@ -148,6 +148,25 @@
     border-color: #ef4444;
 }
 
+#classroom-calendar .fc-timeline-event-harness .fc-event-title {
+    white-space: normal;          /* allow wrapping */
+    word-break: break-word;       /* break long words if needed */
+    overflow-wrap: anywhere;      /* handle very long tokens */
+    font-size: clamp(10px, 1.6vw, 8px); /* shrink on small widths, cap at 12px */
+    line-height: 1.2;
+}
+
+/* #classroom-calendar .fc-timeline-event-harness .fc-event-main {
+    display: flex;
+    align-items: center;
+} */
+
+/* #classroom-calendar #classroom-calendar > div.fc-view-harness.fc-view-harness-passive > div > table > tbody > tr > td:nth-child(3) > div > div > div > table > tbody > tr:nth-child(1) > td > div > div.fc-timeline-events.fc-scrollgrid-sync-inner > div:nth-child(1) > a */
+
+#classroom-calendar .fc-timeline-events.fc-scrollgrid-sync-inner > div > a {
+    height: 100px; 
+}
+
 /* Dark-mode specific refinements */
 :where(.dark) #classroom-calendar .fc-toolbar {
     color: #e5e7eb;
