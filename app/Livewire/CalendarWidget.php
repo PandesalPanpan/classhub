@@ -12,20 +12,7 @@ class CalendarWidget extends FullCalendarWidget
     public function config(): array
     {
         return [
-            'resources' => [
-                [
-                    'id' => 'room-101',
-                    'title' => 'Room 101',
-                ],
-                [
-                    'id' => 'room-102',
-                    'title' => 'Room 102',
-                ],
-                [
-                    'id' => 'room-103',
-                    'title' => 'Room 103',
-                ],
-            ],
+            'resources' => $this->getResources(),
             "slotMinTime" => "06:00:00",
             "slotMaxTime" => "22:00:00",
             "slotDuration" => "00:30:00",
@@ -41,26 +28,32 @@ class CalendarWidget extends FullCalendarWidget
         ];
     }
 
+    protected function getResources(): array
+    {
+        return Room::query()
+            ->get()
+            ->map(fn($room) => [
+                'id' => "room-{$room->room_number}",
+                'title' => $room->room_number,
+            ])
+            ->toArray();
+    }
+
     public function fetchEvents(array $fetchInfo): array
     {
-        // Return static events for now
-        $now = now();
-        
-        return [
-            [
-                'id' => '1',
-                'resourceId' => 'room-101',
-                'title' => 'Test Event 1',
-                'start' => $now->copy()->setTime(9, 0)->toIso8601String(),
-                'end' => $now->copy()->setTime(10, 30)->toIso8601String(),
-            ],
-            [
-                'id' => '2',
-                'resourceId' => 'room-102',
-                'title' => 'Test Event 2',
-                'start' => $now->copy()->setTime(14, 0)->toIso8601String(),
-                'end' => $now->copy()->setTime(15, 30)->toIso8601String(),
-            ],
-        ];
+        // Fetch approved/active schedules and format for FullCalendar
+        return Schedule::where('status', \App\ScheduleStatus::Approved)
+            ->with('room')
+            ->get()
+            ->map(function ($schedule) {
+                return [
+                    'id' => $schedule->id,
+                    'resourceId' => "room-{$schedule->room->room_number}",
+                    'title' => $schedule->title,
+                    'start' => $schedule->start_time->toIso8601String(),
+                    'end' => $schedule->end_time->toIso8601String(),
+                ];
+            })
+            ->toArray();
     }
 }
