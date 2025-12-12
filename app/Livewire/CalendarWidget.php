@@ -4,11 +4,48 @@ namespace App\Livewire;
 
 use App\Models\Room;
 use App\Models\Schedule;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Select;
 use Filament\Widgets\Widget;
 use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
 
 class CalendarWidget extends FullCalendarWidget
 {
+    public ?string $filterRoom = null;
+
+    protected function headerActions(): array
+    {
+        $roomNumber = $this->filterRoom ? str_replace('room-', '', $this->filterRoom) : null;
+        $label = $roomNumber ? "Room: {$roomNumber}" : 'Filter by Room';
+
+        return [
+            Action::make('filterRoom')
+                ->label($label)
+                ->icon('heroicon-o-funnel')
+                ->color($roomNumber ? 'primary' : 'gray')
+                ->badge($roomNumber ? null : 'All')
+                ->schema([
+                    Select::make('filterRoom')
+                        ->label('Room')
+                        ->placeholder('All Rooms')
+                        ->options(function () {
+                            return Room::query()
+                                ->orderBy('room_number')
+                                ->pluck('room_number', 'room_number')
+                                ->mapWithKeys(fn($roomNumber) => ["room-{$roomNumber}" => $roomNumber])
+                                ->toArray();
+                        })
+                        ->searchable()
+                        ->default($this->filterRoom),
+                ])
+                ->action(function (array $data) {
+                    $this->filterRoom = $data['filterRoom'] ?? null;
+                    $this->dispatch('filament-fullcalendar--refresh');
+                }),
+            ...parent::headerActions(),
+        ];
+    }
+
     public function config(): array
     {
         return [
@@ -30,7 +67,14 @@ class CalendarWidget extends FullCalendarWidget
 
     protected function getResources(): array
     {
-        return Room::query()
+        $query = Room::query();
+
+        if ($this->filterRoom) {
+            $roomNumber = str_replace('room-', '', $this->filterRoom);
+            $query->where('room_number', $roomNumber);
+        }
+
+        return $query
             ->get()
             ->map(fn($room) => [
                 'id' => "room-{$room->room_number}",
@@ -41,9 +85,17 @@ class CalendarWidget extends FullCalendarWidget
 
     public function fetchEvents(array $fetchInfo): array
     {
-        // Fetch approved/active schedules and format for FullCalendar
-        return Schedule::where('status', \App\ScheduleStatus::Approved)
-            ->with('room')
+        $query = Schedule::where('status', \App\ScheduleStatus::Approved)
+            ->with('room');
+
+        if ($this->filterRoom) {
+            $roomNumber = str_replace('room-', '', $this->filterRoom);
+            $query->whereHas('room', function ($q) use ($roomNumber) {
+                $q->where('room_number', $roomNumber);
+            });
+        }
+
+        return $query
             ->get()
             ->map(function ($schedule) {
                 return [
