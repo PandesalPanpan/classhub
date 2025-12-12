@@ -96,8 +96,12 @@ class SchedulesTable
                     ->modalCancelActionLabel('Cancel')
                     ->modalWidth('md')
                     ->visible(fn(Schedule $record) => $record->status === ScheduleStatus::Pending)
-                    ->action(function (Schedule $record) {
+                    ->action(function (Schedule $record, $livewire) {
                         $record->approve();
+                        // Access the Livewire component and dispatch browser event
+                        if ($livewire) {
+                            $livewire->dispatch('filament-fullcalendar--refresh');
+                        }
                     }),
                 Action::make('reject')
                     ->label('Reject')
@@ -109,12 +113,16 @@ class SchedulesTable
                     ->modalCancelActionLabel('Cancel')
                     ->modalWidth('md')
                     ->visible(fn(Schedule $record) => $record->status === ScheduleStatus::Pending)
-                    ->action(function (Schedule $record) {
+                    ->action(function (Schedule $record, $livewire) {
                         $record->reject();
+                        // Access the Livewire component and dispatch browser event
+                        if ($livewire) {
+                            $livewire->dispatch('filament-fullcalendar--refresh');
+                        }
                     }),
             ])
             ->toolbarActions([
-                BulkAction::make('approve')
+                    BulkAction::make('approve')
                         ->label('Approve')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
@@ -123,10 +131,14 @@ class SchedulesTable
                         ->modalSubmitActionLabel('Approve')
                         ->modalCancelActionLabel('Cancel')
                         ->modalWidth('md')
-                        ->action(function (Collection $records) {
+                        ->action(function (Collection $records, $livewire) {
                             $records->each(function (Schedule $record) {
                                 $record->approve();
                             });
+                            // Access the Livewire component and dispatch browser event
+                            if ($livewire) {
+                                $livewire->dispatch('filament-fullcalendar--refresh');
+                            }
                         }),
                     BulkAction::make('reject')
                         ->label('Reject')
@@ -137,11 +149,15 @@ class SchedulesTable
                         ->modalSubmitActionLabel('Reject')
                         ->modalCancelActionLabel('Cancel')
                         ->modalWidth('md')
-                        ->action(function (Collection $records) {
+                        ->action(function (Collection $records, $livewire) {
                             $records->each(function (Schedule $record) {
                                 $record->reject();
                             });
-                        }),
+                            // Access the Livewire component and dispatch browser event
+                            if ($livewire) {
+                                $livewire->dispatch('filament-fullcalendar--refresh');
+                            }
+                        })
                 // BulkActionGroup::make([
                     
                 //     // DeleteBulkAction::make(),
