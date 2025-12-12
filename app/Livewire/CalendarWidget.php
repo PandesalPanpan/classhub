@@ -5,8 +5,10 @@ namespace App\Livewire;
 use App\Models\Room;
 use App\Models\Schedule;
 use Filament\Actions\Action;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Widgets\Widget;
+use Illuminate\Support\Facades\Auth;
 use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
 
 class CalendarWidget extends FullCalendarWidget
@@ -108,43 +110,96 @@ class CalendarWidget extends FullCalendarWidget
     {
         $palette = $this->getColorPalette();
         $hash = 0;
-        
+
         // djb2 hash algorithm (same as JavaScript)
         for ($i = 0; $i < strlen($title); $i++) {
             $hash = (($hash << 5) - $hash + ord($title[$i])) & 0x7FFFFFFF;
         }
-        
+
         $idx = abs($hash) % count($palette);
         return $palette[$idx];
     }
 
     public function fetchEvents(array $fetchInfo): array
     {
-        $query = Schedule::where('status', \App\ScheduleStatus::Approved)
+        $events = [];
+        
+        // Always fetch approved schedules
+        $approvedQuery = Schedule::where('status', \App\ScheduleStatus::Approved)
             ->with('room');
 
         if ($this->filterRoom) {
             $roomNumber = str_replace('room-', '', $this->filterRoom);
-            $query->whereHas('room', function ($q) use ($roomNumber) {
+            $approvedQuery->whereHas('room', function ($q) use ($roomNumber) {
                 $q->where('room_number', $roomNumber);
             });
         }
 
-        return $query
-            ->get()
-            ->map(function ($schedule) {
+        $approvedSchedules = $approvedQuery->get();
+
+        // Map approved schedules
+        foreach ($approvedSchedules as $schedule) {
+            $color = $this->hashTitleToColor($schedule->title ?? '');
+
+            $events[] = [
+                'id' => $schedule->id,
+                'resourceId' => "room-{$schedule->room->room_number}",
+                'title' => $schedule->title,
+                'start' => $schedule->start_time->toIso8601String(),
+                'end' => $schedule->end_time->toIso8601String(),
+                'backgroundColor' => $color,
+                'borderColor' => $color,
+            ];
+        }
+
+        // In app panel, also fetch pending requests made by the logged-in user
+        if ($this->isAppPanel() && Auth::check()) {
+            $pendingQuery = Schedule::where('status', \App\ScheduleStatus::Pending)
+                ->where('requester_id', Auth::id())
+                ->with('room');
+
+            if ($this->filterRoom) {
+                $roomNumber = str_replace('room-', '', $this->filterRoom);
+                $pendingQuery->whereHas('room', function ($q) use ($roomNumber) {
+                    $q->where('room_number', $roomNumber);
+                });
+            }
+
+            $pendingSchedules = $pendingQuery->get();
+
+            // Map pending schedules with distinct styling
+            foreach ($pendingSchedules as $schedule) {
                 $color = $this->hashTitleToColor($schedule->title ?? '');
-                
-                return [
+
+                $events[] = [
                     'id' => $schedule->id,
                     'resourceId' => "room-{$schedule->room->room_number}",
-                    'title' => $schedule->title,
+                    'title' => $schedule->title . ' (Pending)',
                     'start' => $schedule->start_time->toIso8601String(),
                     'end' => $schedule->end_time->toIso8601String(),
                     'backgroundColor' => $color,
-                    'borderColor' => $color,
+                    'borderColor' => '#f59e0b', // amber-500 for pending
+                    'borderWidth' => 3,
+                    'classNames' => ['pending-request'], // CSS class for additional styling if needed
                 ];
-            })
-            ->toArray();
+            }
+        }
+
+        return $events;
+    }
+
+    protected function getCurrentPanelId(): ?string
+    {
+        return Filament::getCurrentPanel()?->getId();
+    }
+
+    protected function isAdminPanel(): bool
+    {
+        return $this->getCurrentPanelId() === 'admin';
+    }
+
+    protected function isAppPanel(): bool
+    {
+        return $this->getCurrentPanelId() === 'app';
     }
 }
