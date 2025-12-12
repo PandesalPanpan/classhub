@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Resources\Rooms\RoomResource;
 use App\Filament\Resources\Schedules\ScheduleResource;
+use App\Livewire\CalendarWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -20,6 +21,7 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -47,6 +49,7 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
                 FilamentInfoWidget::class,
+                CalendarWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -61,6 +64,23 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+            ])
+            ->plugin(
+                FilamentFullCalendarPlugin::make()
+                    ->schedulerLicenseKey('GPL-My-Project-Is-Open-Source')
+                    ->selectable(true)
+                    ->timezone(config('app.timezone'))
+                    ->plugins([
+                        'dayGrid',
+                        'timeGrid',
+                        'interaction',
+                        'list',
+                        'resource',
+                        'resourceTimeline',
+                    ])
+                    ->config([
+                        'initialView' => 'timeGridWeek',
+                    ])
+                );
     }
 }
