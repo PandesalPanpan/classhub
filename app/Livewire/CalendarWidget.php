@@ -14,6 +14,9 @@ use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
 class CalendarWidget extends FullCalendarWidget
 {
     public ?string $filterRoom = null;
+    
+    protected ?\Illuminate\Support\Collection $roomsCache = null;
+    protected ?string $roomsCacheFilter = null;
 
     protected function headerActions(): array
     {
@@ -74,8 +77,13 @@ class CalendarWidget extends FullCalendarWidget
         ];
     }
 
-    protected function getResources(): array
+    protected function getRooms(): \Illuminate\Support\Collection
     {
+        // Check if cache is valid (exists and filter hasn't changed)
+        if ($this->roomsCache !== null && $this->roomsCacheFilter === $this->filterRoom) {
+            return $this->roomsCache;
+        }
+
         $query = Room::query();
 
         if ($this->filterRoom) {
@@ -83,12 +91,19 @@ class CalendarWidget extends FullCalendarWidget
             $query->where('room_number', $roomNumber);
         }
 
-        return $query
-            ->get()
+        $this->roomsCache = $query->get()->keyBy('id');
+        $this->roomsCacheFilter = $this->filterRoom;
+        return $this->roomsCache;
+    }
+
+    protected function getResources(): array
+    {
+        return $this->getRooms()
             ->map(fn($room) => [
                 'id' => "room-{$room->room_number}",
                 'title' => $room->room_number,
             ])
+            ->values()
             ->toArray();
     }
 
@@ -122,70 +137,62 @@ class CalendarWidget extends FullCalendarWidget
 
     public function fetchEvents(array $fetchInfo): array
     {
-        $events = [];
+        // Get rooms once (cached) for mapping
+        $rooms = $this->getRooms();
         
-        // Always fetch approved schedules
-        $approvedQuery = Schedule::where('status', \App\ScheduleStatus::Approved)
-            ->with('room');
+        // Build a single query for approved schedules and pending requests by logged-in user
+        $query = Schedule::query()
+            ->where(function ($q) {
+                // Always fetch approved schedules
+                $q->where('status', \App\ScheduleStatus::Approved);
 
+                // In app panel, also fetch pending requests made by the logged-in user
+                if ($this->isAppPanel() && Auth::check()) {
+                    $q->orWhere(function ($pendingQ) {
+                        $pendingQ->where('status', \App\ScheduleStatus::Pending)
+                            ->where('requester_id', Auth::id());
+                    });
+                }
+            });
+
+        // Apply room filter if set - filter by room_id instead of whereHas for better performance
         if ($this->filterRoom) {
             $roomNumber = str_replace('room-', '', $this->filterRoom);
-            $approvedQuery->whereHas('room', function ($q) use ($roomNumber) {
-                $q->where('room_number', $roomNumber);
-            });
+            $room = $rooms->firstWhere('room_number', $roomNumber);
+            if ($room) {
+                $query->where('room_id', $room->id);
+            } else {
+                // If room not found, return empty array
+                return [];
+            }
         }
 
-        $approvedSchedules = $approvedQuery->get();
+        $schedules = $query->get();
 
-        // Map approved schedules
-        foreach ($approvedSchedules as $schedule) {
+        // Map schedules to calendar events using pre-fetched rooms
+        return $schedules->map(function ($schedule) use ($rooms) {
+            $room = $rooms->get($schedule->room_id);
+            
+            // Skip if room not found (shouldn't happen, but safety check)
+            if (!$room) {
+                return null;
+            }
+
             $color = $this->hashTitleToColor($schedule->title ?? '');
+            $isPending = $schedule->status === \App\ScheduleStatus::Pending;
 
-            $events[] = [
+            return [
                 'id' => $schedule->id,
-                'resourceId' => "room-{$schedule->room->room_number}",
-                'title' => $schedule->title,
+                'resourceId' => "room-{$room->room_number}",
+                'title' => $isPending ? $schedule->title . ' (Pending)' : $schedule->title,
                 'start' => $schedule->start_time->toIso8601String(),
                 'end' => $schedule->end_time->toIso8601String(),
                 'backgroundColor' => $color,
-                'borderColor' => $color,
+                'borderColor' => $isPending ? '#f59e0b' : $color, // amber-500 for pending
+                'borderWidth' => $isPending ? 3 : 1,
+                'classNames' => $isPending ? ['pending-request'] : [],
             ];
-        }
-
-        // In app panel, also fetch pending requests made by the logged-in user
-        if ($this->isAppPanel() && Auth::check()) {
-            $pendingQuery = Schedule::where('status', \App\ScheduleStatus::Pending)
-                ->where('requester_id', Auth::id())
-                ->with('room');
-
-            if ($this->filterRoom) {
-                $roomNumber = str_replace('room-', '', $this->filterRoom);
-                $pendingQuery->whereHas('room', function ($q) use ($roomNumber) {
-                    $q->where('room_number', $roomNumber);
-                });
-            }
-
-            $pendingSchedules = $pendingQuery->get();
-
-            // Map pending schedules with distinct styling
-            foreach ($pendingSchedules as $schedule) {
-                $color = $this->hashTitleToColor($schedule->title ?? '');
-
-                $events[] = [
-                    'id' => $schedule->id,
-                    'resourceId' => "room-{$schedule->room->room_number}",
-                    'title' => $schedule->title . ' (Pending)',
-                    'start' => $schedule->start_time->toIso8601String(),
-                    'end' => $schedule->end_time->toIso8601String(),
-                    'backgroundColor' => $color,
-                    'borderColor' => '#f59e0b', // amber-500 for pending
-                    'borderWidth' => 3,
-                    'classNames' => ['pending-request'], // CSS class for additional styling if needed
-                ];
-            }
-        }
-
-        return $events;
+        })->filter()->values()->toArray();
     }
 
     protected function getCurrentPanelId(): ?string
