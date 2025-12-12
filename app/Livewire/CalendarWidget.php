@@ -19,6 +19,13 @@ class CalendarWidget extends FullCalendarWidget
         $label = $roomNumber ? "Room: {$roomNumber}" : 'Filter by Room';
 
         return [
+            Action::make('refresh')
+                ->label('Refresh')
+                ->icon('heroicon-o-arrow-path')
+                ->color('gray')
+                ->action(function () {
+                    $this->dispatch('filament-fullcalendar--refresh');
+                }),
             Action::make('filterRoom')
                 ->label($label)
                 ->icon('heroicon-o-funnel')
