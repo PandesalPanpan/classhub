@@ -81,10 +81,15 @@ class RequestSchedule extends Page implements HasTable
 
                         return $data;
                     })
-                    ->action(function (array $data) {
+                    ->action(function (array $data, $livewire) {
                         unset($data['duration_minutes']);
                         
                         Schedule::create($data);
+                        
+                        // Trigger calendar refresh to show the new pending request
+                        if ($livewire) {
+                            $livewire->dispatch('filament-fullcalendar--refresh');
+                        }
                     }),
             ]);
     }
