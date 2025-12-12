@@ -98,7 +98,6 @@ class SchedulesTable
                     ->visible(fn(Schedule $record) => $record->status === ScheduleStatus::Pending)
                     ->action(function (Schedule $record, $livewire) {
                         $record->approve();
-                        // Access the Livewire component and dispatch browser event
                         if ($livewire) {
                             $livewire->dispatch('filament-fullcalendar--refresh');
                         }
@@ -115,7 +114,6 @@ class SchedulesTable
                     ->visible(fn(Schedule $record) => $record->status === ScheduleStatus::Pending)
                     ->action(function (Schedule $record, $livewire) {
                         $record->reject();
-                        // Access the Livewire component and dispatch browser event
                         if ($livewire) {
                             $livewire->dispatch('filament-fullcalendar--refresh');
                         }
@@ -135,8 +133,7 @@ class SchedulesTable
                             $records->each(function (Schedule $record) {
                                 $record->approve();
                             });
-                            // Access the Livewire component and dispatch browser event
-                            if ($livewire) {
+                                if ($livewire) {
                                 $livewire->dispatch('filament-fullcalendar--refresh');
                             }
                         }),
@@ -153,8 +150,7 @@ class SchedulesTable
                             $records->each(function (Schedule $record) {
                                 $record->reject();
                             });
-                            // Access the Livewire component and dispatch browser event
-                            if ($livewire) {
+                                if ($livewire) {
                                 $livewire->dispatch('filament-fullcalendar--refresh');
                             }
                         })
