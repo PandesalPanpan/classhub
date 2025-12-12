@@ -90,6 +90,34 @@ class CalendarWidget extends FullCalendarWidget
             ->toArray();
     }
 
+    protected function getColorPalette(): array
+    {
+        return [
+            '#2563eb', // blue-600
+            '#7c3aed', // violet-600
+            '#0891b2', // cyan-600
+            '#16a34a', // green-600
+            '#d97706', // amber-600
+            '#dc2626', // red-600
+            '#0ea5e9', // sky-500
+            '#9333ea', // purple-600
+        ];
+    }
+
+    protected function hashTitleToColor(string $title): string
+    {
+        $palette = $this->getColorPalette();
+        $hash = 0;
+        
+        // djb2 hash algorithm (same as JavaScript)
+        for ($i = 0; $i < strlen($title); $i++) {
+            $hash = (($hash << 5) - $hash + ord($title[$i])) & 0x7FFFFFFF;
+        }
+        
+        $idx = abs($hash) % count($palette);
+        return $palette[$idx];
+    }
+
     public function fetchEvents(array $fetchInfo): array
     {
         $query = Schedule::where('status', \App\ScheduleStatus::Approved)
@@ -105,12 +133,16 @@ class CalendarWidget extends FullCalendarWidget
         return $query
             ->get()
             ->map(function ($schedule) {
+                $color = $this->hashTitleToColor($schedule->title ?? '');
+                
                 return [
                     'id' => $schedule->id,
                     'resourceId' => "room-{$schedule->room->room_number}",
                     'title' => $schedule->title,
                     'start' => $schedule->start_time->toIso8601String(),
                     'end' => $schedule->end_time->toIso8601String(),
+                    'backgroundColor' => $color,
+                    'borderColor' => $color,
                 ];
             })
             ->toArray();
