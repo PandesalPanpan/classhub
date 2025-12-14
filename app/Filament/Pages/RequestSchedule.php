@@ -65,6 +65,26 @@ class RequestSchedule extends Page implements HasTable
                     ->options(ScheduleStatus::class)
                     ->multiple(),
             ])
+            ->recordActions([
+                Action::make('cancel')
+                    ->label('Cancel')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Cancel Request')
+                    ->modalDescription('Are you sure you want to cancel this request? This action cannot be undone.')
+                    ->modalSubmitActionLabel('Cancel Request')
+                    ->modalCancelActionLabel('Keep Request')
+                    ->modalWidth('md')
+                    ->visible(fn(Schedule $record) => $record->status === ScheduleStatus::Pending)
+                    ->action(function (Schedule $record, $livewire) {
+                        $record->cancel();
+                        
+                        if ($livewire) {
+                            $livewire->dispatch('filament-fullcalendar--refresh');
+                        }
+                    }),
+            ])
             ->headerActions([
                 Action::make('create')
                     ->label('Create Request')
@@ -86,7 +106,6 @@ class RequestSchedule extends Page implements HasTable
                         
                         Schedule::create($data);
                         
-                        // Trigger calendar refresh to show the new pending request
                         if ($livewire) {
                             $livewire->dispatch('filament-fullcalendar--refresh');
                         }
