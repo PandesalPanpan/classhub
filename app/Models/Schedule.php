@@ -26,6 +26,13 @@ class Schedule extends Model
         ]);
     }
 
+    public function cancel(): void
+    {
+        $this->update([
+            'status' => ScheduleStatus::Cancelled,
+        ]);
+    }
+
     public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class, 'room_id', 'id');
