@@ -4,11 +4,13 @@ namespace App\Livewire;
 
 use App\Models\Room;
 use App\Models\Schedule;
+use App\ScheduleStatus;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Section;
 use Filament\Widgets\Widget;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
@@ -63,11 +65,56 @@ class CalendarWidget extends FullCalendarWidget
                 ->mountUsing(function ($form, array $arguments) {
                     // Pre-fill start_time and end_time when a date selection is made
                     if (isset($arguments['type']) && $arguments['type'] === 'select') {
-                        $form->fill([
+                        $fillData = [
                             'start_time' => $arguments['start'] ?? null,
                             'end_time' => $arguments['end'] ?? null,
-                        ]);
+                        ];
+
+                        // Auto-fill room_id based on selected resource or filterRoom
+                        $roomId = null;
+                        
+                        // First, try to get room from the selected resource
+                        if (isset($arguments['resource']['id'])) {
+                            $resourceId = $arguments['resource']['id'];
+                            // Extract room number from resource ID (format: "room-{room_number}")
+                            if (str_starts_with($resourceId, 'room-')) {
+                                $roomNumber = str_replace('room-', '', $resourceId);
+                                $room = Room::where('room_number', $roomNumber)->first();
+                                if ($room) {
+                                    $roomId = $room->id;
+                                }
+                            }
+                        }
+                        
+                        // Fallback to filterRoom if no resource was selected
+                        if (!$roomId && $this->filterRoom) {
+                            $roomNumber = str_replace('room-', '', $this->filterRoom);
+                            $room = Room::where('room_number', $roomNumber)->first();
+                            if ($room) {
+                                $roomId = $room->id;
+                            }
+                        }
+
+                        if ($roomId) {
+                            $fillData['room_id'] = $roomId;
+                        }
+
+                        $form->fill($fillData);
                     }
+                })
+                ->mutateDataUsing(function (array $data): array {
+                    // Auto-fill requester_id with currently logged-in user
+                    if (Auth::check() && !isset($data['requester_id'])) {
+                        $data['requester_id'] = Auth::id();
+                    }
+
+                    // Note: approver_id is typically set when approving/rejecting, not during creation
+                    if ($this->isAdminPanel() && Auth::check() && !isset($data['approver_id'])) {
+                        $data['approver_id'] = Auth::id();
+                        $data['status'] = ScheduleStatus::Approved;
+                    }
+
+                    return $data;
                 }),
         ];
     }
@@ -75,13 +122,26 @@ class CalendarWidget extends FullCalendarWidget
     public function getFormSchema(): array
     {
         return [
+            Select::make('room_id')
+                ->relationship('room', 'room_number')
+                ->prefix("Room: ")
+                ->label('Room')
+                ->required(),
             TextInput::make('title')
                 ->required(),
-            DateTimePicker::make('start_time')
-                ->required(),
-            DateTimePicker::make('end_time')
-                ->required(),
-        ];
+            Section::make('Schedule')
+                ->schema([
+                    DateTimePicker::make('start_time')
+                        ->required()
+                        ->label('Start Time')
+                        ->prefix("Start Time: "),
+                    DateTimePicker::make('end_time')
+                        ->required()
+                        ->label('End Time')
+                        ->prefix("End Time: "),
+                ])
+                ->columns(2),
+            ];
     }
 
     public function config(): array
