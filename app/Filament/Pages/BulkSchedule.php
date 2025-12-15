@@ -17,6 +17,7 @@ use Filament\Pages\Concerns\InteractsWithHeaderActions;
 use Filament\Pages\Page;
 use Filament\Support\Enums\ActionSize;
 use Illuminate\Support\Facades\Auth;
+use App\Services\ScheduleOverlapChecker;
 
 class BulkSchedule extends Page implements HasForms, HasActions
 {
@@ -101,7 +102,23 @@ class BulkSchedule extends Page implements HasForms, HasActions
             return;
         }
 
-        // Create all schedules
+        // Validate overlaps for all occurrences before creating any records
+        foreach ($schedules as $scheduleData) {
+            if (ScheduleOverlapChecker::hasOverlap(
+                $scheduleData['room_id'],
+                Carbon::parse($scheduleData['start_time']),
+                Carbon::parse($scheduleData['end_time'])
+            )) {
+                Notification::make()
+                    ->title('Schedule conflict')
+                    ->body('One or more occurrences overlap with existing schedules for this room.')
+                    ->danger()
+                    ->send();
+                return;
+            }
+        }
+
+        // Create all schedules after validation passes
         foreach ($schedules as $scheduleData) {
             Schedule::create($scheduleData);
         }
