@@ -7,6 +7,7 @@ use App\Models\Schedule;
 use App\ScheduleStatus;
 use Carbon\Carbon;
 use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Forms\Components\Select;
 use Filament\Pages\Page;
 use Filament\Schemas\Schema;
@@ -17,6 +18,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class RequestSchedule extends Page implements HasTable
 {    
@@ -103,7 +105,24 @@ class RequestSchedule extends Page implements HasTable
                     })
                     ->action(function (array $data, $livewire) {
                         unset($data['duration_minutes']);
-                        
+
+                        // Server-side overlap validation (Pending + Approved in same room)
+                        if ($this->hasOverlap(
+                            $data['room_id'],
+                            Carbon::parse($data['start_time']),
+                            Carbon::parse($data['end_time'])
+                        )) {
+                            Notification::make()
+                                ->title('Schedule conflict')
+                                ->body('This room already has a schedule during the selected time.')
+                                ->danger()
+                                ->send();
+
+                            throw ValidationException::withMessages([
+                                'start_time' => 'This room already has a schedule during the selected time.',
+                            ]);
+                        }
+
                         Schedule::create($data);
                         
                         if ($livewire) {
@@ -116,5 +135,20 @@ class RequestSchedule extends Page implements HasTable
     public function getTableQuery(): Builder
     {
         return Schedule::query()->where('requester_id', Auth::id());
+    }
+
+    /**
+     * Check for overlapping schedules in the same room.
+     */
+    protected function hasOverlap(int $roomId, Carbon $start, Carbon $end): bool
+    {
+        return Schedule::query()
+            ->where('room_id', $roomId)
+            ->whereIn('status', [ScheduleStatus::Approved, ScheduleStatus::Pending])
+            ->where(function ($query) use ($start, $end) {
+                $query->where('start_time', '<', $end)
+                    ->where('end_time', '>', $start);
+            })
+            ->exists();
     }
 }
