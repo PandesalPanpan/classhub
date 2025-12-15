@@ -8,7 +8,6 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -48,17 +47,39 @@ class BulkScheduleForm
                         ->native(false)
                         ->displayFormat('F j Y g:i A')
                         ->format('Y-m-d H:i:s')
-                        ->helperText('The start time for the first occurrence'),
+                        ->helperText('The start time for the first occurrence')
+                        ->live(onBlur: true)
+                        ->afterStateUpdated(function (Get $get, Set $set) {
+                            static::updateEndTime($get, $set);
+                        }),
                     
                     DateTimePicker::make('end_time')
                         ->label('First Occurrence End Time')
-                        ->required()
                         ->seconds(false)
                         ->minutesStep(30)
                         ->native(false)
                         ->displayFormat('F j Y g:i A')
                         ->format('Y-m-d H:i:s')
-                        ->helperText('The end time for each occurrence'),
+                        ->disabled()
+                        ->dehydrated(false)
+                        ->helperText('Automatically calculated from start time and duration'),
+
+                    Select::make('duration_minutes')
+                        ->label('Duration')
+                        ->options([
+                            30 => '30 minutes',
+                            60 => '1 hour',
+                            90 => '1.5 hours',
+                            120 => '2 hours',
+                            150 => '2.5 hours',
+                            180 => '3 hours',
+                        ])
+                        ->default(60)
+                        ->required()
+                        ->live()
+                        ->afterStateUpdated(function (Get $get, Set $set) {
+                            static::updateEndTime($get, $set);
+                        }),
                 ])
                 ->columns(2),
 
@@ -96,14 +117,14 @@ class BulkScheduleForm
                         ->helperText('Total number of occurrences to create'),
 
                     DateTimePicker::make('end_date')
-                        ->label('End Date')
+                        ->label('End Date & Time')
                         ->required()
                         ->native(false)
-                        ->displayFormat('F j Y')
-                        ->format('Y-m-d')
+                        ->displayFormat('F j Y g:i A')
+                        ->format('Y-m-d H:i:s')
                         ->minDate(fn (Get $get) => $get('start_time') ? Carbon::parse($get('start_time'))->format('Y-m-d') : null)
                         ->visible(fn (Get $get) => $get('recurrence_end_type') === 'on')
-                        ->helperText('Last date to create occurrences'),
+                        ->helperText('Choose a specific end date and time.'),
                 ])
                 ->columns(2),
 
@@ -123,6 +144,19 @@ class BulkScheduleForm
                         ->helperText('Optional remarks to add to all schedules'),
                 ]),
         ];
+    }
+
+    protected static function updateEndTime(Get $get, Set $set): void
+    {
+        $start = $get('start_time');
+        $duration = $get('duration_minutes');
+
+        if (! $start || ! $duration) {
+            $set('end_time', null);
+            return;
+        }
+
+        $set('end_time', Carbon::parse($start)->addMinutes($duration));
     }
 }
 

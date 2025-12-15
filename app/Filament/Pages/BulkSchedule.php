@@ -78,6 +78,18 @@ class BulkSchedule extends Page implements HasForms, HasActions
             $data['approver_id'] = Auth::id();
         }
 
+        // If ending on a specific date, ensure end_date exists
+        if (($data['recurrence_end_type'] ?? null) === 'on') {
+            $start = Carbon::parse($data['start_time']);
+            $data['end_date'] = $data['end_date'] ?? $start->format('Y-m-d H:i:s');
+        }
+
+        // Ensure first occurrence end_time respects duration if provided
+        if (isset($data['start_time']) && isset($data['duration_minutes'])) {
+            $start = Carbon::parse($data['start_time']);
+            $data['end_time'] = $start->copy()->addMinutes($data['duration_minutes']);
+        }
+
         $schedules = $this->generateSchedules($data);
         
         if (empty($schedules)) {
@@ -113,8 +125,13 @@ class BulkSchedule extends Page implements HasForms, HasActions
     {
         $schedules = [];
         $startTime = Carbon::parse($data['start_time']);
-        $endTime = Carbon::parse($data['end_time']);
-        $duration = $startTime->diffInMinutes($endTime);
+        // Prefer provided duration; otherwise compute from end_time
+        if (isset($data['duration_minutes'])) {
+            $duration = (int) $data['duration_minutes'];
+        } else {
+            $endTime = Carbon::parse($data['end_time']);
+            $duration = $startTime->diffInMinutes($endTime);
+        }
         
         $recurrenceType = $data['recurrence_type'];
         $recurrenceEndType = $data['recurrence_end_type'];
@@ -122,7 +139,7 @@ class BulkSchedule extends Page implements HasForms, HasActions
         // Determine end date
         $endDate = null;
         if ($recurrenceEndType === 'on') {
-            $endDate = Carbon::parse($data['end_date'])->endOfDay();
+            $endDate = Carbon::parse($data['end_date']);
         } elseif ($recurrenceEndType === 'after') {
             $occurrences = (int) ($data['occurrences'] ?? 12);
         }
