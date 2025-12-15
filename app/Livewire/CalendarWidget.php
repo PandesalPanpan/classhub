@@ -6,13 +6,18 @@ use App\Models\Room;
 use App\Models\Schedule;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Widgets\Widget;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Saade\FilamentFullCalendar\Actions\CreateAction;
 use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
 
 class CalendarWidget extends FullCalendarWidget
 {
+    public Model | string | null $model = Schedule::class;
     public ?string $filterRoom = null;
     
     protected ?\Illuminate\Support\Collection $roomsCache = null;
@@ -54,7 +59,28 @@ class CalendarWidget extends FullCalendarWidget
                     $this->filterRoom = $data['filterRoom'] ?? null;
                     $this->dispatch('filament-fullcalendar--refresh');
                 }),
-            ...parent::headerActions(),
+            CreateAction::make()
+                ->mountUsing(function ($form, array $arguments) {
+                    // Pre-fill start_time and end_time when a date selection is made
+                    if (isset($arguments['type']) && $arguments['type'] === 'select') {
+                        $form->fill([
+                            'start_time' => $arguments['start'] ?? null,
+                            'end_time' => $arguments['end'] ?? null,
+                        ]);
+                    }
+                }),
+        ];
+    }
+
+    public function getFormSchema(): array
+    {
+        return [
+            TextInput::make('title')
+                ->required(),
+            DateTimePicker::make('start_time')
+                ->required(),
+            DateTimePicker::make('end_time')
+                ->required(),
         ];
     }
 
