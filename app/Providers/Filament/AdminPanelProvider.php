@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\BulkSchedule;
 use App\Filament\Resources\Rooms\RoomResource;
 use App\Filament\Resources\Schedules\ScheduleResource;
 use App\Livewire\CalendarWidget;
@@ -40,6 +41,7 @@ class AdminPanelProvider extends PanelProvider
             // ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
+                BulkSchedule::class
             ])
             ->resources([
                 ScheduleResource::class,
