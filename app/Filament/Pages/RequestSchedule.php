@@ -19,6 +19,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use App\Services\ScheduleOverlapChecker;
 
 class RequestSchedule extends Page implements HasTable
 {    
@@ -107,7 +108,7 @@ class RequestSchedule extends Page implements HasTable
                         unset($data['duration_minutes']);
 
                         // Server-side overlap validation (Pending + Approved in same room)
-                        if ($this->hasOverlap(
+                        if (ScheduleOverlapChecker::hasOverlap(
                             $data['room_id'],
                             Carbon::parse($data['start_time']),
                             Carbon::parse($data['end_time'])
@@ -137,18 +138,4 @@ class RequestSchedule extends Page implements HasTable
         return Schedule::query()->where('requester_id', Auth::id());
     }
 
-    /**
-     * Check for overlapping schedules in the same room.
-     */
-    protected function hasOverlap(int $roomId, Carbon $start, Carbon $end): bool
-    {
-        return Schedule::query()
-            ->where('room_id', $roomId)
-            ->whereIn('status', [ScheduleStatus::Approved, ScheduleStatus::Pending])
-            ->where(function ($query) use ($start, $end) {
-                $query->where('start_time', '<', $end)
-                    ->where('end_time', '>', $start);
-            })
-            ->exists();
-    }
 }

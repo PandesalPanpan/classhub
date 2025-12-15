@@ -14,6 +14,10 @@ use Filament\Schemas\Components\Section;
 use Filament\Widgets\Widget;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
+use Filament\Notifications\Notification;
+use Carbon\Carbon;
+use App\Services\ScheduleOverlapChecker;
 use Saade\FilamentFullCalendar\Actions\CreateAction;
 use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
 
@@ -112,6 +116,26 @@ class CalendarWidget extends FullCalendarWidget
                     if ($this->isAdminPanel() && Auth::check() && !isset($data['approver_id'])) {
                         $data['approver_id'] = Auth::id();
                         $data['status'] = ScheduleStatus::Approved;
+                    }
+
+                    // Overlap validation (Pending + Approved in same room)
+                    if (
+                        isset($data['room_id'], $data['start_time'], $data['end_time']) &&
+                        ScheduleOverlapChecker::hasOverlap(
+                            $data['room_id'],
+                            Carbon::parse($data['start_time']),
+                            Carbon::parse($data['end_time'])
+                        )
+                    ) {
+                        Notification::make()
+                            ->title('Schedule conflict')
+                            ->body('This room already has a schedule during the selected time.')
+                            ->danger()
+                            ->send();
+
+                        throw ValidationException::withMessages([
+                            'start_time' => 'This room already has a schedule during the selected time.',
+                        ]);
                     }
 
                     return $data;
@@ -295,4 +319,5 @@ class CalendarWidget extends FullCalendarWidget
     {
         return $this->getCurrentPanelId() === 'app';
     }
+
 }
