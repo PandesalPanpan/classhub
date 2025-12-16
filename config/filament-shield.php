@@ -245,10 +245,6 @@ return [
          * Custom schedule workflow permissions.
          * These are intended to be granted primarily to the "Admin" and "Superadmin" roles.
          */
-        'Schedules:Approve',
-        'Schedules:Reject',
-        'Schedules:Cancel',
-        'Schedules:BulkSchedule',
     ],
 
     /*

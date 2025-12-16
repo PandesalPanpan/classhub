@@ -36,31 +36,6 @@ class RolesAndPermissionsSeeder extends Seeder
         );
 
         /*
-         * Custom schedule workflow permissions.
-         * These names align with the custom_permissions defined in config/filament-shield.php.
-         */
-        $schedulePermissions = collect([
-            'Schedules:Approve',
-            'Schedules:Reject',
-            'Schedules:Cancel',
-            'Schedules:BulkSchedule',
-        ])->map(function (string $name) use ($guard) {
-            return Permission::firstOrCreate(
-                ['name' => $name, 'guard_name' => $guard],
-                []
-            );
-        });
-
-        // Grant schedule workflow permissions to Admin and Superadmin.
-        $admin->syncPermissions(
-            $schedulePermissions->pluck('name')->toArray()
-        );
-
-        $superAdmin->givePermissionTo(
-            $schedulePermissions->pluck('name')->toArray()
-        );
-
-        /*
          * Note:
          * - Class Representative is intentionally kept minimal here.
          *   You can assign resource/page/widget permissions to it from
