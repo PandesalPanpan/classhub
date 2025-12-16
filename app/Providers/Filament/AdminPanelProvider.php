@@ -6,6 +6,7 @@ use App\Filament\Pages\BulkSchedule;
 use App\Filament\Resources\Rooms\RoomResource;
 use App\Filament\Resources\Schedules\ScheduleResource;
 use App\Livewire\CalendarWidget;
+use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -67,22 +68,26 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ])
-            ->plugin(
-                FilamentFullCalendarPlugin::make()
-                    ->schedulerLicenseKey('GPL-My-Project-Is-Open-Source')
-                    ->selectable(true)
-                    ->timezone(config('app.timezone'))
-                    ->plugins([
-                        'dayGrid',
-                        'timeGrid',
-                        'interaction',
-                        'list',
-                        'resource',
-                        'resourceTimeline',
-                    ])
-                    ->config([
-                        'initialView' => 'timeGridWeek',
-                    ])
-                );
+            ->plugins(
+                [
+                    FilamentFullCalendarPlugin::make()
+                        ->schedulerLicenseKey('GPL-My-Project-Is-Open-Source')
+                        ->selectable(true)
+                        ->timezone(config('app.timezone'))
+                        ->plugins([
+                            'dayGrid',
+                            'timeGrid',
+                            'interaction',
+                            'list',
+                            'resource',
+                            'resourceTimeline',
+                        ])
+                        ->config([
+                            'initialView' => 'timeGridWeek',
+                        ]),
+                    FilamentShieldPlugin::make(),
+                ],
+
+            );
     }
 }
