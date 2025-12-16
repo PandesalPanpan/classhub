@@ -18,6 +18,7 @@ use Filament\Pages\Page;
 use Filament\Support\Enums\ActionSize;
 use Illuminate\Support\Facades\Auth;
 use App\Services\ScheduleOverlapChecker;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 
 class BulkSchedule extends Page implements HasForms, HasActions
 {
@@ -25,6 +26,7 @@ class BulkSchedule extends Page implements HasForms, HasActions
     use InteractsWithFormActions;
     use InteractsWithHeaderActions;
     use InteractsWithActions;
+    use HasPageShield;
 
     protected static ?int $navigationSort = 2;
 
