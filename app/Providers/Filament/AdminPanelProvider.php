@@ -5,6 +5,7 @@ namespace App\Providers\Filament;
 use App\Filament\Pages\BulkSchedule;
 use App\Filament\Resources\Rooms\RoomResource;
 use App\Filament\Resources\Schedules\ScheduleResource;
+use App\Filament\Resources\Users\UserResource;
 use App\Livewire\CalendarWidget;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use Filament\Http\Middleware\Authenticate;
@@ -47,6 +48,7 @@ class AdminPanelProvider extends PanelProvider
             ->resources([
                 ScheduleResource::class,
                 RoomResource::class,
+                UserResource::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
