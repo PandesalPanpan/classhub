@@ -19,6 +19,9 @@ use Filament\Notifications\Notification;
 use Carbon\Carbon;
 use App\Services\ScheduleOverlapChecker;
 use Saade\FilamentFullCalendar\Actions\CreateAction;
+use Saade\FilamentFullCalendar\Actions\EditAction;
+use Saade\FilamentFullCalendar\Actions\DeleteAction;
+use Saade\FilamentFullCalendar\Actions\ViewAction as FullCalendarViewAction;
 use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
 
 class CalendarWidget extends FullCalendarWidget
@@ -66,6 +69,7 @@ class CalendarWidget extends FullCalendarWidget
                     $this->dispatch('filament-fullcalendar--refresh');
                 }),
             CreateAction::make()
+                ->authorize(fn () => Auth::check() && Auth::user()->can('Create:Schedule'))
                 ->mountUsing(function ($form, array $arguments) {
                     // Pre-fill start_time and end_time when a date selection is made
                     if (isset($arguments['type']) && $arguments['type'] === 'select') {
@@ -140,6 +144,14 @@ class CalendarWidget extends FullCalendarWidget
 
                     return $data;
                 }),
+            // ViewAction::make()
+            //     ->modalHeading('View Schedule')
+            //     ->modalSubmitActionLabel('View')
+            //     ->modalCancelActionLabel('Cancel')
+            //     ->modalWidth('md')
+            //     ->action(function (array $data) {
+            //         $this->dispatch('filament-fullcalendar--view', $data);
+            //     }),
         ];
     }
 
@@ -318,6 +330,33 @@ class CalendarWidget extends FullCalendarWidget
     protected function isAppPanel(): bool
     {
         return $this->getCurrentPanelId() === 'app';
+    }
+
+    protected function viewAction(): Action
+    {
+        return FullCalendarViewAction::make()
+            ->authorize(function (Schedule $record) {
+                return Auth::check() && Auth::user()->can('View:Schedule');
+            });
+    }
+
+    protected function modalActions(): array
+    {
+        $actions = [];
+
+        $editAction = EditAction::make()
+            ->authorize(function (Schedule $record) {
+                return Auth::check() && Auth::user()->can('Update:Schedule');
+            });
+        $actions[] = $editAction;
+
+        $deleteAction = DeleteAction::make()
+            ->authorize(function (Schedule $record) {
+                return Auth::check() && Auth::user()->can('Delete:Schedule');
+            });
+        $actions[] = $deleteAction;
+
+        return $actions;
     }
 
 }
