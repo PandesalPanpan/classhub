@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\Users\Pages;
 
+use App\Filament\Resources\Users\Schemas\UserForm;
 use App\Filament\Resources\Users\UserResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Schema;
 
 class EditUser extends EditRecord
 {
@@ -17,5 +19,10 @@ class EditUser extends EditRecord
             ViewAction::make(),
             DeleteAction::make(),
         ];
+    }
+
+    public function form(Schema $schema): Schema
+    {
+        return UserForm::configureForEdit($schema);
     }
 }
