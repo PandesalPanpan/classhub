@@ -36,6 +36,7 @@ class RequestSchedule extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
+            ->defaultSort('start_time', 'desc')
             ->columns([
                 TextColumn::make('room.room_number')
                     ->label('Room#')
@@ -60,18 +61,20 @@ class RequestSchedule extends Page implements HasTable
                 TextColumn::make('start_time')
                     ->dateTime()
                     ->sortable()
-                    ->formatStateUsing(fn($state) => Carbon::parse($state)->format('F j Y g:iA')),
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->format('M j, Y g:iA')),
                 TextColumn::make('end_time')
                     ->dateTime()
                     ->sortable()
-                    ->formatStateUsing(fn($state) => Carbon::parse($state)->format('F j Y g:iA')),
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->format('M j, Y g:iA')),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->format('M j, Y g:iA'))
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->format('M j, Y g:iA'))
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
