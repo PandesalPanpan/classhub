@@ -3,13 +3,13 @@
 namespace App\Models;
 
 use App\ScheduleStatus;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Auth;
 
 class Schedule extends Model
 {
-
     public function approve(): void
     {
         $this->update([
@@ -55,5 +55,36 @@ class Schedule extends Model
             'start_time' => 'datetime',
             'end_time' => 'datetime',
         ];
+    }
+
+    protected function eventTitle(): Attribute
+    {
+        return Attribute::make(
+            get: function (): string {
+                return $this->subject.' ('.$this->program_year_section.')'.' - '.$this->instructorInitials;
+            },
+        );
+    }
+
+    protected function instructorInitials(): Attribute
+    {
+        return Attribute::make(
+            get: function (): string {
+                if (empty($this->instructor)) {
+                    return '';
+                }
+
+                $nameParts = explode(' ', trim($this->instructor));
+
+                if (count($nameParts) === 1) {
+                    return $nameParts[0];
+                }
+
+                $lastName = array_pop($nameParts);
+                $initials = array_map(fn ($part) => strtoupper(substr($part, 0, 1)).'.', $nameParts);
+
+                return implode('', $initials).' '.$lastName;
+            },
+        );
     }
 }
