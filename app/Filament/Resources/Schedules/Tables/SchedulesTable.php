@@ -2,14 +2,11 @@
 
 namespace App\Filament\Resources\Schedules\Tables;
 
+use App\Filament\Resources\Schedules\Actions\SchedulesActions;
 use App\Models\Schedule;
 use App\ScheduleStatus;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
-use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -86,38 +83,7 @@ class SchedulesTable
             ->recordActions([
                 // ViewAction::make(),
                 // EditAction::make(),
-                Action::make('approve')
-                    ->label('Approve')
-                    ->icon('heroicon-o-check-circle')
-                    ->color('success')
-                    ->requiresConfirmation()
-                    ->modalHeading('Approve Schedule')
-                    ->modalSubmitActionLabel('Approve')
-                    ->modalCancelActionLabel('Cancel')
-                    ->modalWidth('md')
-                    ->visible(fn(Schedule $record) => $record->status === ScheduleStatus::Pending)
-                    ->action(function (Schedule $record, $livewire) {
-                        $record->approve();
-                        if ($livewire) {
-                            $livewire->dispatch('filament-fullcalendar--refresh');
-                        }
-                    }),
-                Action::make('reject')
-                    ->label('Reject')
-                    ->icon('heroicon-o-x-circle')
-                    ->color('danger')
-                    ->requiresConfirmation()
-                    ->modalHeading('Reject Schedule')
-                    ->modalSubmitActionLabel('Reject')
-                    ->modalCancelActionLabel('Cancel')
-                    ->modalWidth('md')
-                    ->visible(fn(Schedule $record) => $record->status === ScheduleStatus::Pending)
-                    ->action(function (Schedule $record, $livewire) {
-                        $record->reject();
-                        if ($livewire) {
-                            $livewire->dispatch('filament-fullcalendar--refresh');
-                        }
-                    }),
+                ...SchedulesActions::recordActions(),
             ])
             ->toolbarActions([
                     BulkAction::make('approve')
