@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Filament\Pages\Schemas\RequestScheduleForm;
 use App\Models\Room;
 use App\Models\Schedule;
 use App\ScheduleStatus;
@@ -122,24 +123,34 @@ class CalendarWidget extends FullCalendarWidget
                         $data['status'] = ScheduleStatus::Approved;
                     }
 
-                    // Overlap validation (Pending + Approved in same room)
-                    if (
-                        isset($data['room_id'], $data['start_time'], $data['end_time']) &&
-                        ScheduleOverlapChecker::hasOverlap(
-                            $data['room_id'],
-                            Carbon::parse($data['start_time']),
-                            Carbon::parse($data['end_time'])
-                        )
-                    ) {
-                        Notification::make()
-                            ->title('Schedule conflict')
-                            ->body('This room already has a schedule during the selected time.')
-                            ->danger()
-                            ->send();
+                    // Normalize schedule times using duration_minutes (app panel schema)
+                    if (isset($data['start_time'], $data['duration_minutes'])) {
+                        $start = Carbon::parse($data['start_time']);
+                        $data['end_time'] = $start->copy()->addMinutes($data['duration_minutes'])->format('Y-m-d H:i:s');
 
-                        throw ValidationException::withMessages([
-                            'start_time' => 'This room already has a schedule during the selected time.',
-                        ]);
+                        // duration_minutes is only for calculating end_time and should not be stored
+                        unset($data['duration_minutes']);
+                    }
+
+                    // Overlap validation (Pending + Approved in same room)
+                    if (! empty($data['room_id']) && isset($data['start_time'], $data['end_time'])) {
+                        if (
+                            ScheduleOverlapChecker::hasOverlap(
+                                $data['room_id'],
+                                Carbon::parse($data['start_time']),
+                                Carbon::parse($data['end_time'])
+                            )
+                        ) {
+                            Notification::make()
+                                ->title('Schedule conflict')
+                                ->body('This room already has a schedule during the selected time.')
+                                ->danger()
+                                ->send();
+
+                            throw ValidationException::withMessages([
+                                'start_time' => 'This room already has a schedule during the selected time.',
+                            ]);
+                        }
                     }
 
                     return $data;
@@ -157,27 +168,32 @@ class CalendarWidget extends FullCalendarWidget
 
     public function getFormSchema(): array
     {
+        if ($this->isAppPanel()) {
+            // Match the app-side "Request Schedule" form when used in the app panel
+            return RequestScheduleForm::schema();
+        }
+
+        // Admin panel or other panels can keep a simpler form if desired
         return [
             Select::make('room_id')
                 ->relationship('room', 'room_number')
-                ->prefix("Room: ")
+                ->prefix('Room: ')
                 ->label('Room')
                 ->required(),
-            TextInput::make('title')
+            TextInput::make('subject')
+                ->label('Subject / Purpose')
                 ->required(),
             Section::make('Schedule')
                 ->schema([
                     DateTimePicker::make('start_time')
                         ->required()
-                        ->label('Start Time')
-                        ->prefix("Start Time: "),
+                        ->label('Start Time'),
                     DateTimePicker::make('end_time')
                         ->required()
-                        ->label('End Time')
-                        ->prefix("End Time: "),
+                        ->label('End Time'),
                 ])
                 ->columns(2),
-            ];
+        ];
     }
 
     public function config(): array
@@ -300,13 +316,13 @@ class CalendarWidget extends FullCalendarWidget
                 return null;
             }
 
-            $color = $this->hashTitleToColor($schedule->title ?? '');
+            $color = $this->hashTitleToColor($schedule->subject ?? '');
             $isPending = $schedule->status === \App\ScheduleStatus::Pending;
 
             return [
                 'id' => $schedule->id,
                 'resourceId' => "room-{$room->room_number}",
-                'title' => $isPending ? $schedule->title . ' (Pending)' : $schedule->title,
+                'title' => $isPending ? ($schedule->subject . ' (Pending)') : $schedule->subject,
                 'start' => $schedule->start_time->toIso8601String(),
                 'end' => $schedule->end_time->toIso8601String(),
                 'backgroundColor' => $color,
