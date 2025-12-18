@@ -58,14 +58,27 @@ class RequestSchedule extends Page implements HasTable
                 TextColumn::make('status')
                     ->searchable()
                     ->badge(),
-                TextColumn::make('start_time')
-                    ->dateTime()
-                    ->sortable()
-                    ->formatStateUsing(fn($state) => Carbon::parse($state)->format('M j, Y g:iA')),
-                TextColumn::make('end_time')
-                    ->dateTime()
-                    ->sortable()
-                    ->formatStateUsing(fn($state) => Carbon::parse($state)->format('M j, Y g:iA')),
+                TextColumn::make('schedule_time')
+                    ->label('Schedule')
+                    ->sortable(query: function ($query, string $direction) {
+                        return $query->orderBy('start_time', $direction);
+                    })
+                    ->getStateUsing(function (Schedule $record): string {
+                        if (! $record->start_time || ! $record->end_time) {
+                            return 'N/A';
+                        }
+
+                        $start = Carbon::parse($record->start_time);
+                        $end = Carbon::parse($record->end_time);
+
+                        // If same day, show date once: "Dec 19, 2025 7:30AM-9:30AM"
+                        if ($start->isSameDay($end)) {
+                            return $start->format('M j, Y') . ' ' . $start->format('g:iA') . '-' . $end->format('g:iA');
+                        }
+
+                        // If different days, show both dates
+                        return $start->format('M j, Y g:iA') . ' - ' . $end->format('M j, Y g:iA');
+                    }),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
