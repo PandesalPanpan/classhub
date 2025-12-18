@@ -39,21 +39,32 @@ class RequestSchedule extends Page implements HasTable
             ->columns([
                 TextColumn::make('room.room_number')
                     ->label('Room#')
+                    ->getStateUsing(fn($record) => $record->room?->room_number ?? 'N/A')
                     ->searchable(),
-                TextColumn::make('requester.name')
-                    ->searchable(),
+                // TextColumn::make('requester.name')
+                //     ->searchable(),
                 TextColumn::make('approver.name')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('title')
+                TextColumn::make('subject')
                     ->searchable(),
-                TextColumn::make('block')
+                TextColumn::make('program_year_section')
+                    ->label('PYS')
+                    ->tooltip('Program Year & Section')
+                    ->searchable(),
+                TextColumn::make('instructor')
                     ->searchable(),
                 TextColumn::make('status')
-                    ->searchable(),
+                    ->searchable()
+                    ->badge(),
                 TextColumn::make('start_time')
                     ->dateTime()
-                    ->sortable(),
+                    ->sortable()
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->format('F j Y g:iA')),
+                TextColumn::make('end_time')
+                    ->dateTime()
+                    ->sortable()
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->format('F j Y g:iA')),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -108,20 +119,23 @@ class RequestSchedule extends Page implements HasTable
                         unset($data['duration_minutes']);
 
                         // Server-side overlap validation (Pending + Approved in same room)
-                        if (ScheduleOverlapChecker::hasOverlap(
-                            $data['room_id'],
-                            Carbon::parse($data['start_time']),
-                            Carbon::parse($data['end_time'])
-                        )) {
-                            Notification::make()
-                                ->title('Schedule conflict')
-                                ->body('This room already has a schedule during the selected time.')
-                                ->danger()
-                                ->send();
+                        // Only check for conflicts when a room has been selected.
+                        if (! empty($data['room_id'])) {
+                            if (ScheduleOverlapChecker::hasOverlap(
+                                $data['room_id'],
+                                Carbon::parse($data['start_time']),
+                                Carbon::parse($data['end_time'])
+                            )) {
+                                Notification::make()
+                                    ->title('Schedule conflict')
+                                    ->body('This room already has a schedule during the selected time.')
+                                    ->danger()
+                                    ->send();
 
-                            throw ValidationException::withMessages([
-                                'start_time' => 'This room already has a schedule during the selected time.',
-                            ]);
+                                throw ValidationException::withMessages([
+                                    'start_time' => 'This room already has a schedule during the selected time.',
+                                ]);
+                            }
                         }
 
                         Schedule::create($data);
