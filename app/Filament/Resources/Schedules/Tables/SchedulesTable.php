@@ -108,40 +108,40 @@ class SchedulesTable
                 ...SchedulesActions::recordActions(),
             ])
             ->toolbarActions([
-                    BulkAction::make('approve')
-                        ->label('Approve')
-                        ->icon('heroicon-o-check-circle')
-                        ->color('success')
-                        ->requiresConfirmation()
-                        ->modalHeading('Approve Schedule')
-                        ->modalSubmitActionLabel('Approve')
-                        ->modalCancelActionLabel('Cancel')
-                        ->modalWidth('md')
-                        ->action(function (Collection $records, $livewire) {
-                            $records->each(function (Schedule $record) {
-                                $record->approve();
-                            });
-                                if ($livewire) {
-                                $livewire->dispatch('filament-fullcalendar--refresh');
-                            }
-                        }),
-                    BulkAction::make('reject')
-                        ->label('Reject')
-                        ->icon('heroicon-o-x-circle')
-                        ->color('danger')
-                        ->requiresConfirmation()
-                        ->modalHeading('Reject Schedule')
-                        ->modalSubmitActionLabel('Reject')
-                        ->modalCancelActionLabel('Cancel')
-                        ->modalWidth('md')
-                        ->action(function (Collection $records, $livewire) {
-                            $records->each(function (Schedule $record) {
-                                $record->reject();
-                            });
-                                if ($livewire) {
-                                $livewire->dispatch('filament-fullcalendar--refresh');
-                            }
-                        })
+                    // BulkAction::make('approve')
+                    //     ->label('Approve')
+                    //     ->icon('heroicon-o-check-circle')
+                    //     ->color('success')
+                    //     ->requiresConfirmation()
+                    //     ->modalHeading('Approve Schedule')
+                    //     ->modalSubmitActionLabel('Approve')
+                    //     ->modalCancelActionLabel('Cancel')
+                    //     ->modalWidth('md')
+                    //     ->action(function (Collection $records, $livewire) {
+                    //         $records->each(function (Schedule $record) {
+                    //             $record->approve();
+                    //         });
+                    //             if ($livewire) {
+                    //             $livewire->dispatch('filament-fullcalendar--refresh');
+                    //         }
+                    //     }),
+                    // BulkAction::make('reject')
+                    //     ->label('Reject')
+                    //     ->icon('heroicon-o-x-circle')
+                    //     ->color('danger')
+                    //     ->requiresConfirmation()
+                    //     ->modalHeading('Reject Schedule')
+                    //     ->modalSubmitActionLabel('Reject')
+                    //     ->modalCancelActionLabel('Cancel')
+                    //     ->modalWidth('md')
+                    //     ->action(function (Collection $records, $livewire) {
+                    //         $records->each(function (Schedule $record) {
+                    //             $record->reject();
+                    //         });
+                    //             if ($livewire) {
+                    //             $livewire->dispatch('filament-fullcalendar--refresh');
+                    //         }
+                    //     })
                 // BulkActionGroup::make([
                     
                 //     // DeleteBulkAction::make(),
