@@ -22,24 +22,35 @@ class RequestScheduleForm
     public static function schema(): array
     {
         return [
-            Select::make('room_id')
-                ->relationship('room', 'room_number', modifyQueryUsing: function (Builder $query) {
-                    return $query->where('is_active', true);
-                })
-                ->label('Preferred Room')
-                ->helperText('Your selected room is a preference only. Administrators will make the final room assignment.'),
-            TextInput::make('subject')
-                ->label('Subject / Purpose')
-                ->required(),
-            TextInput::make('program_year_section')
-                ->label('Program Year & Section')
-                ->helperText('e.g. BSCOE 4-3P')
-                ->required(),
-            TextInput::make('instructor')
-                ->label('Instructor')
-                ->helperText('e.g. Rolito Mahaguay')
-                ->required(),
+            Section::make('Request Details')
+                ->description('Tell us what this request is for.')
+                ->schema([
+                    Select::make('room_id')
+                        ->relationship('room', 'room_number', modifyQueryUsing: function (Builder $query) {
+                            return $query->where('is_active', true);
+                        })
+                        ->label('Preferred Room')
+                        ->placeholder('Optional – choose your preferred room')
+                        ->helperText('Admins assign final room.'),
+                    TextInput::make('subject')
+                        ->label('Subject / Purpose')
+                        ->placeholder('e.g. Methods of Research / Lab Activity')
+                        ->required(),
+                    TextInput::make('program_year_section')
+                        ->label('Program Year & Section')
+                        ->placeholder('e.g. BSCPE 4-3P')
+                        ->required(),
+                    TextInput::make('instructor')
+                        ->label('Instructor')
+                        ->placeholder('e.g. Rolito Mahaguay')
+                        ->required(),
+                ])
+                ->columns([
+                    'default' => 1,
+                    'md' => 2,
+                ]),
             Section::make('Schedule')
+                ->description('Choose when you need the room. End time is calculated automatically from the duration.')
                 ->schema([
                     DateTimePicker::make('start_time')
                         ->required()
@@ -79,7 +90,10 @@ class RequestScheduleForm
                             static::updateEndTime($get, $set);
                         }),
                 ])
-                ->columns(2),
+                ->columns([
+                    'default' => 1,
+                    'md' => 2,
+                ]),
         ];
     }
 
