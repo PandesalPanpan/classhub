@@ -26,10 +26,19 @@ class RequestScheduleForm
                 ->relationship('room', 'room_number', modifyQueryUsing: function (Builder $query) {
                     return $query->where('is_active', true);
                 })
+                ->label('Preferred Room')
+                ->helperText('Your selected room is a preference only. Administrators will make the final room assignment.'),
+            TextInput::make('subject')
+                ->label('Subject / Purpose')
                 ->required(),
-            TextInput::make('title')
+            TextInput::make('program_year_section')
+                ->label('Program Year & Section')
+                ->helperText('e.g. BSCOE 4-3P')
                 ->required(),
-
+            TextInput::make('instructor')
+                ->label('Instructor')
+                ->helperText('e.g. Rolito Mahaguay')
+                ->required(),
             Section::make('Schedule')
                 ->schema([
                     DateTimePicker::make('start_time')
