@@ -29,12 +29,13 @@ class ClassroomCalendar extends Component
                 return [
                     'id' => $schedule->id,
                     'resourceId' => "room-{$schedule->room->room_number}",
-                    'title' => $schedule->title,
+                    'title' => $schedule->event_title,
                     'start' => $schedule->start_time->toIso8601String(),
-                    'end' => $schedule->end_time->toIso8601String(),                ];
+                    'end' => $schedule->end_time->toIso8601String(),
+                ];
             })
             ->toArray();
-            
+
         return view('livewire.classroom-calendar', [
             'rooms' => $rooms,
             'events' => $events,
