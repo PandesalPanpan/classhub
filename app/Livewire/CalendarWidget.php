@@ -322,7 +322,7 @@ class CalendarWidget extends FullCalendarWidget
             return [
                 'id' => $schedule->id,
                 'resourceId' => "room-{$room->room_number}",
-                'title' => $isPending ? ($schedule->subject . ' (Pending)') : $schedule->subject,
+                'title' => $isPending ? ($schedule->event_title) : $schedule->event_title,
                 'start' => $schedule->start_time->toIso8601String(),
                 'end' => $schedule->end_time->toIso8601String(),
                 'backgroundColor' => $color,

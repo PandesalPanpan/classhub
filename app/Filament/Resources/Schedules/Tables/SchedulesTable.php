@@ -34,7 +34,8 @@ class SchedulesTable
                     ->label('PYS')
                     ->tooltip('Program Year & Section')
                     ->searchable(),
-                TextColumn::make('instructor')
+                TextColumn::make('instructorInitials')
+                    ->label('Instructor')
                     ->searchable(),
                 TextColumn::make('status')
                     ->badge()

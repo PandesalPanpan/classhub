@@ -53,7 +53,7 @@ class RequestSchedule extends Page implements HasTable
                     ->label('PYS')
                     ->tooltip('Program Year & Section')
                     ->searchable(),
-                TextColumn::make('instructor')
+                TextColumn::make('instructorInitials')
                     ->searchable(),
                 TextColumn::make('status')
                     ->searchable()
