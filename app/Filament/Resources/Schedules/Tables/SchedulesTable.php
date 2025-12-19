@@ -19,6 +19,8 @@ class SchedulesTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->poll('10s')
+            ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('room.room_number')
                     ->label('Room#')
