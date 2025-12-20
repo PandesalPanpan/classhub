@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Room;
+use App\RoomType;
 use Illuminate\Database\Seeder;
 
 class RoomSeeder extends Seeder
@@ -14,6 +15,8 @@ class RoomSeeder extends Seeder
                 ['room_number' => (string) $i],
                 [
                     'is_active' => true,
+                    'room_type' => RoomType::cases()[array_rand(RoomType::cases())]->value,
+                    'capacity' => rand(30, 50),
                 ]
             );
         }
