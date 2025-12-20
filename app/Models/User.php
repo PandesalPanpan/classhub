@@ -74,4 +74,14 @@ class User extends Authenticatable implements FilamentUser
 
         return false;
     }
+
+    protected static function booted(): void
+    {
+        static::created(function (User $user) {
+            if ($user->roles->isNotEmpty()){
+                return;
+            }
+            $user->assignRole('Class Representative');
+        });
+    }
 }
