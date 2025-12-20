@@ -19,6 +19,7 @@ use Illuminate\Validation\ValidationException;
 use Filament\Notifications\Notification;
 use Carbon\Carbon;
 use App\Services\ScheduleOverlapChecker;
+use Illuminate\Database\Eloquent\Builder;
 use Saade\FilamentFullCalendar\Actions\CreateAction;
 use Saade\FilamentFullCalendar\Actions\EditAction;
 use Saade\FilamentFullCalendar\Actions\DeleteAction;
@@ -176,7 +177,10 @@ class CalendarWidget extends FullCalendarWidget
         // Admin panel or other panels can keep a simpler form if desired
         return [
             Select::make('room_id')
-                ->relationship('room', 'room_number')
+                ->relationship('room', 'room_number', modifyQueryUsing: function (Builder $query) {
+                    return $query->where('is_active', true);
+                })
+                ->getOptionLabelFromRecordUsing(fn ($record) => $record->room_full_label)
                 ->prefix('Room: ')
                 ->label('Room')
                 ->required(),

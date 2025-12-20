@@ -21,12 +21,14 @@ class BulkScheduleForm
         return [
             Select::make('room_id')
                 ->label('Room')
-                ->required()
                 ->options(fn () => Room::query()
                     ->where('is_active', true)
                     ->orderBy('room_number')
-                    ->pluck('room_number', 'id'))
-                ->searchable(),
+                    ->get()
+                    ->mapWithKeys(fn ($room) => [$room->id => $room->room_full_label ?? $room->room_number])
+                    ->toArray())
+                ->searchable()
+                ->required(),
             
             TextInput::make('title')
                 ->label('Title')

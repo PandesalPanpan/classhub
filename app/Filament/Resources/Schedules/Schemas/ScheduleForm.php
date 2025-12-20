@@ -21,6 +21,7 @@ class ScheduleForm
                     ->relationship('room', 'room_number', modifyQueryUsing: function (Builder $query) {
                         return $query->where('is_active', true);
                     })
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->room_full_label)
                     ->prefix("Room: ")
                     ->required(),
                 Select::make('requester_id')
