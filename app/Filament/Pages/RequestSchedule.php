@@ -6,6 +6,7 @@ use App\Filament\Pages\Schemas\RequestScheduleForm;
 use App\Filament\Resources\Schedules\Tables\ScheduleColumns;
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use App\Services\ScheduleOverlapChecker;
 use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
@@ -17,11 +18,11 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
-use App\Services\ScheduleOverlapChecker;
 
 class RequestSchedule extends Page implements HasTable
-{    
+{
     use InteractsWithTable;
+
     protected string $view = 'filament.pages.request-schedule';
 
     public function getDescription(): string
@@ -38,7 +39,7 @@ class RequestSchedule extends Page implements HasTable
             ->columns([
                 ScheduleColumns::roomNumber(withFallback: true),
                 ScheduleColumns::requesterName()
-                ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 ScheduleColumns::approverName(),
                 ScheduleColumns::subject(),
                 ScheduleColumns::programYearSection(),
@@ -64,10 +65,10 @@ class RequestSchedule extends Page implements HasTable
                     ->modalSubmitActionLabel('Cancel Request')
                     ->modalCancelActionLabel('Keep Request')
                     ->modalWidth('md')
-                    ->visible(fn(Schedule $record) => $record->status === ScheduleStatus::Pending)
+                    ->visible(fn (Schedule $record) => $record->status === ScheduleStatus::Pending)
                     ->action(function (Schedule $record, $livewire) {
                         $record->cancel();
-                        
+
                         if ($livewire) {
                             $livewire->dispatch('filament-fullcalendar--refresh');
                         }
@@ -79,6 +80,16 @@ class RequestSchedule extends Page implements HasTable
                     ->icon('heroicon-o-plus')
                     ->color('success')
                     ->schema(RequestScheduleForm::schema())
+                    ->extraModalFooterActions([
+                        Action::make('viewRules')
+                            ->label('View Reservation & Policy Rules')
+                            ->icon('heroicon-o-document-text')
+                            ->color('gray')
+                            ->modalHeading('Reservation and Policy Rules')
+                            ->modalContent(view('filament.pages.reservation-rules'))
+                            ->modalSubmitAction(false)
+                            ->modalCancelActionLabel('Close'),
+                    ])
                     ->mutateDataUsing(function (array $data): array {
                         $data['requester_id'] = Auth::id();
 
@@ -113,7 +124,7 @@ class RequestSchedule extends Page implements HasTable
                         }
 
                         Schedule::create($data);
-                        
+
                         if ($livewire) {
                             $livewire->dispatch('filament-fullcalendar--refresh');
                         }
@@ -125,5 +136,4 @@ class RequestSchedule extends Page implements HasTable
     {
         return Schedule::query()->where('requester_id', Auth::id());
     }
-
 }
