@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Pages\Schemas\RequestScheduleForm;
+use App\Filament\Resources\Schedules\Tables\ScheduleColumns;
 use App\Models\Schedule;
 use App\ScheduleStatus;
 use Carbon\Carbon;
@@ -55,9 +56,7 @@ class RequestSchedule extends Page implements HasTable
                     ->searchable(),
                 TextColumn::make('instructorInitials')
                     ->searchable(),
-                TextColumn::make('status')
-                    ->searchable()
-                    ->badge(),
+                ScheduleColumns::status(),
                 TextColumn::make('schedule_time')
                     ->label('Schedule')
                     ->sortable(query: function ($query, string $direction) {

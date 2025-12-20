@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Schedules\Tables;
 
 use App\Filament\Resources\Schedules\Actions\SchedulesActions;
+use App\Filament\Resources\Schedules\Tables\ScheduleColumns;
 use App\Models\Schedule;
 use App\ScheduleStatus;
 use Filament\Actions\Action;
@@ -12,7 +13,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 
 class SchedulesTable
 {
@@ -39,34 +39,7 @@ class SchedulesTable
                 TextColumn::make('instructorInitials')
                     ->label('Instructor')
                     ->searchable(),
-                TextColumn::make('status')
-                    ->badge()
-                    ->formatStateUsing(function (ScheduleStatus|string|null $state): string {
-                        if (! $state) {
-                            return 'Unknown';
-                        }
-
-                        $value = $state instanceof ScheduleStatus ? $state->value : $state;
-
-                        return Str::title(strtolower($value)); // e.g. "PENDING" -> "Pending"
-                    })
-                    ->color(function (ScheduleStatus|string|null $state): string {
-                        if (! $state) {
-                            return 'secondary';
-                        }
-
-                        $status = $state instanceof ScheduleStatus ? $state : ScheduleStatus::from($state);
-
-                        return match ($status) {
-                            ScheduleStatus::Pending => 'warning',
-                            ScheduleStatus::Approved => 'success',
-                            ScheduleStatus::Rejected => 'danger',
-                            ScheduleStatus::Cancelled => 'secondary',
-                            ScheduleStatus::Completed => 'success',
-                            ScheduleStatus::Expired => 'secondary',
-                        };
-                    })
-                    ->searchable(),
+                ScheduleColumns::status(),
                 TextColumn::make('schedule_time')
                     ->label('Schedule')
                     ->sortable(query: function ($query, string $direction) {
