@@ -10,6 +10,7 @@ use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
 
 class RoomsTable
 {
@@ -21,8 +22,15 @@ class RoomsTable
                     ->searchable(),
                 IconColumn::make('is_active')
                     ->boolean(),
-                TextColumn::make('description')
+                TextColumn::make('room_type')
+                    ->formatStateUsing(fn($state) => Str::title(strtolower($state->value)))
                     ->searchable(),
+                TextColumn::make('capacity')
+                    ->searchable(),
+                // TextColumn::make('schedules_count')
+                //     ->label('Schedules')
+                //     ->getStateUsing(fn($record) => $record->schedules->count())
+                //     ->sortable(),
                 TextColumn::make('key.status')
                     ->label('Key')
                     // Keep state as status (enum/string) for color matching
