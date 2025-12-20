@@ -43,7 +43,6 @@ class RequestScheduleForm
                     TextInput::make('instructor')
                         ->label('Instructor')
                         ->placeholder('e.g. Rolito Mahaguay')
-                        ->required(),
                 ])
                 ->columns([
                     'default' => 1,
