@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use App\RoomType;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Room extends Model
 {
@@ -24,5 +26,14 @@ class Room extends Model
         return [
             'room_type' => RoomType::class,
         ];
+    }
+
+    protected function roomFullLabel(): Attribute
+    {
+        return Attribute::make(
+            get: function (): string {
+                return $this->room_number.' - '.Str::title(strtolower($this->room_type->value));
+            },
+        );
     }
 }
