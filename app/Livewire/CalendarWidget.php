@@ -3,35 +3,34 @@
 namespace App\Livewire;
 
 use App\Filament\Pages\Schemas\RequestScheduleForm;
+use App\Filament\Resources\Schedules\Schemas\ScheduleForm;
 use App\Models\Room;
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use App\Services\ScheduleOverlapChecker;
+use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
-use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
-use Filament\Schemas\Components\Section;
-use Filament\Widgets\Widget;
+use Filament\Notifications\Notification;
+use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
-use Filament\Notifications\Notification;
-use Carbon\Carbon;
-use App\Services\ScheduleOverlapChecker;
-use Illuminate\Database\Eloquent\Builder;
 use Saade\FilamentFullCalendar\Actions\CreateAction;
-use Saade\FilamentFullCalendar\Actions\EditAction;
 use Saade\FilamentFullCalendar\Actions\DeleteAction;
+use Saade\FilamentFullCalendar\Actions\EditAction;
 use Saade\FilamentFullCalendar\Actions\ViewAction as FullCalendarViewAction;
 use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
 
 class CalendarWidget extends FullCalendarWidget
 {
-    public Model | string | null $model = Schedule::class;
+    public Model|string|null $model = Schedule::class;
+
     public ?string $filterRoom = null;
-    
+
     protected ?\Illuminate\Support\Collection $roomsCache = null;
+
     protected ?string $roomsCacheFilter = null;
 
     protected function headerActions(): array
@@ -60,7 +59,7 @@ class CalendarWidget extends FullCalendarWidget
                             return Room::query()
                                 ->orderBy('room_number')
                                 ->pluck('room_number', 'room_number')
-                                ->mapWithKeys(fn($roomNumber) => ["room-{$roomNumber}" => $roomNumber])
+                                ->mapWithKeys(fn ($roomNumber) => ["room-{$roomNumber}" => $roomNumber])
                                 ->toArray();
                         })
                         ->searchable()
@@ -82,7 +81,7 @@ class CalendarWidget extends FullCalendarWidget
 
                         // Auto-fill room_id based on selected resource or filterRoom
                         $roomId = null;
-                        
+
                         // First, try to get room from the selected resource
                         if (isset($arguments['resource']['id'])) {
                             $resourceId = $arguments['resource']['id'];
@@ -95,9 +94,9 @@ class CalendarWidget extends FullCalendarWidget
                                 }
                             }
                         }
-                        
+
                         // Fallback to filterRoom if no resource was selected
-                        if (!$roomId && $this->filterRoom) {
+                        if (! $roomId && $this->filterRoom) {
                             $roomNumber = str_replace('room-', '', $this->filterRoom);
                             $room = Room::where('room_number', $roomNumber)->first();
                             if ($room) {
@@ -114,12 +113,12 @@ class CalendarWidget extends FullCalendarWidget
                 })
                 ->mutateDataUsing(function (array $data): array {
                     // Auto-fill requester_id with currently logged-in user
-                    if (Auth::check() && !isset($data['requester_id'])) {
+                    if (Auth::check() && ! isset($data['requester_id'])) {
                         $data['requester_id'] = Auth::id();
                     }
 
                     // Note: approver_id is typically set when approving/rejecting, not during creation
-                    if ($this->isAdminPanel() && Auth::check() && !isset($data['approver_id'])) {
+                    if ($this->isAdminPanel() && Auth::check() && ! isset($data['approver_id'])) {
                         $data['approver_id'] = Auth::id();
                         $data['status'] = ScheduleStatus::Approved;
                     }
@@ -174,48 +173,28 @@ class CalendarWidget extends FullCalendarWidget
             return RequestScheduleForm::schema();
         }
 
-        // Admin panel or other panels can keep a simpler form if desired
-        return [
-            Select::make('room_id')
-                ->relationship('room', 'room_number', modifyQueryUsing: function (Builder $query) {
-                    return $query->where('is_active', true);
-                })
-                ->getOptionLabelFromRecordUsing(fn ($record) => $record->room_full_label)
-                ->prefix('Room: ')
-                ->label('Room')
-                ->required(),
-            TextInput::make('subject')
-                ->label('Subject / Purpose')
-                ->required(),
-            Section::make('Schedule')
-                ->schema([
-                    DateTimePicker::make('start_time')
-                        ->required()
-                        ->label('Start Time'),
-                    DateTimePicker::make('end_time')
-                        ->required()
-                        ->label('End Time'),
-                ])
-                ->columns(2),
-        ];
+        // Admin panel: reuse ScheduleForm schema
+        $schema = ScheduleForm::configure(Schema::make());
+
+        return $schema->getComponents();
     }
 
     public function config(): array
     {
         return [
             'resources' => $this->getResources(),
-            "slotMinTime" => "06:00:00",
-            "slotMaxTime" => "22:00:00",
-            "slotDuration" => "00:30:00",
-            "height" => "auto",
-            "aspectRatio" => 1.8,
-            "editable" => false,
-            "selectable" => true,
-            "selectMirror" => true,
-            "dayMaxEvents" => true,
-            "weekends" => true,
-            "nowIndicator" => true,
-            "hiddenDays" => [0],
+            'slotMinTime' => '06:00:00',
+            'slotMaxTime' => '22:00:00',
+            'slotDuration' => '00:30:00',
+            'height' => 'auto',
+            'aspectRatio' => 1.8,
+            'editable' => false,
+            'selectable' => true,
+            'selectMirror' => true,
+            'dayMaxEvents' => true,
+            'weekends' => true,
+            'nowIndicator' => true,
+            'hiddenDays' => [0],
         ];
     }
 
@@ -235,13 +214,14 @@ class CalendarWidget extends FullCalendarWidget
 
         $this->roomsCache = $query->get()->keyBy('id');
         $this->roomsCacheFilter = $this->filterRoom;
+
         return $this->roomsCache;
     }
 
     protected function getResources(): array
     {
         return $this->getRooms()
-            ->map(fn($room) => [
+            ->map(fn ($room) => [
                 'id' => "room-{$room->room_number}",
                 'title' => $room->room_number,
             ])
@@ -274,6 +254,7 @@ class CalendarWidget extends FullCalendarWidget
         }
 
         $idx = abs($hash) % count($palette);
+
         return $palette[$idx];
     }
 
@@ -281,7 +262,7 @@ class CalendarWidget extends FullCalendarWidget
     {
         // Get rooms once (cached) for mapping
         $rooms = $this->getRooms();
-        
+
         // Build a single query for approved schedules and pending requests by logged-in user
         $query = Schedule::query()
             ->where(function ($q) {
@@ -314,9 +295,9 @@ class CalendarWidget extends FullCalendarWidget
         // Map schedules to calendar events using pre-fetched rooms
         return $schedules->map(function ($schedule) use ($rooms) {
             $room = $rooms->get($schedule->room_id);
-            
+
             // Skip if room not found (shouldn't happen, but safety check)
-            if (!$room) {
+            if (! $room) {
                 return null;
             }
 
@@ -378,5 +359,4 @@ class CalendarWidget extends FullCalendarWidget
 
         return $actions;
     }
-
 }
