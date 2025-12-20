@@ -9,10 +9,7 @@ use App\ScheduleStatus;
 use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
-use Filament\Forms\Components\Select;
 use Filament\Pages\Page;
-use Filament\Schemas\Schema;
-use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\SelectFilter;
@@ -39,55 +36,17 @@ class RequestSchedule extends Page implements HasTable
         return $table
             ->defaultSort('start_time', 'desc')
             ->columns([
-                TextColumn::make('room.room_number')
-                    ->label('Room#')
-                    ->getStateUsing(fn($record) => $record->room?->room_number ?? 'N/A')
-                    ->searchable(),
-                // TextColumn::make('requester.name')
-                //     ->searchable(),
-                TextColumn::make('approver.name')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('subject')
-                    ->searchable(),
-                TextColumn::make('program_year_section')
-                    ->label('PYS')
-                    ->tooltip('Program Year & Section')
-                    ->searchable(),
-                TextColumn::make('instructorInitials')
-                    ->searchable(),
+                ScheduleColumns::roomNumber(withFallback: true),
+                ScheduleColumns::requesterName()
+                ->toggleable(isToggledHiddenByDefault: true),
+                ScheduleColumns::approverName(),
+                ScheduleColumns::subject(),
+                ScheduleColumns::programYearSection(),
+                ScheduleColumns::instructorInitials(),
                 ScheduleColumns::status(),
-                TextColumn::make('schedule_time')
-                    ->label('Schedule')
-                    ->sortable(query: function ($query, string $direction) {
-                        return $query->orderBy('start_time', $direction);
-                    })
-                    ->getStateUsing(function (Schedule $record): string {
-                        if (! $record->start_time || ! $record->end_time) {
-                            return 'N/A';
-                        }
-
-                        $start = Carbon::parse($record->start_time);
-                        $end = Carbon::parse($record->end_time);
-
-                        // If same day, show date once: "Dec 19, 2025 7:30AM-9:30AM"
-                        if ($start->isSameDay($end)) {
-                            return $start->format('M j, Y') . ' ' . $start->format('g:iA') . '-' . $end->format('g:iA');
-                        }
-
-                        // If different days, show both dates
-                        return $start->format('M j, Y g:iA') . ' - ' . $end->format('M j, Y g:iA');
-                    }),
-                TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->formatStateUsing(fn($state) => Carbon::parse($state)->format('M j, Y g:iA'))
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->formatStateUsing(fn($state) => Carbon::parse($state)->format('M j, Y g:iA'))
-                    ->toggleable(isToggledHiddenByDefault: true),
+                ScheduleColumns::scheduleTime(),
+                ScheduleColumns::createdAt(),
+                ScheduleColumns::updatedAt(),
             ])
             ->filters([
                 SelectFilter::make('status')
