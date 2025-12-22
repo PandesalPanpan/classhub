@@ -9,6 +9,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\HtmlString;
 use Illuminate\Validation\Rules\Password;
 
 class Register extends BaseRegister
@@ -23,6 +24,7 @@ class Register extends BaseRegister
                 $this->getPasswordFormComponent(),
                 $this->getPasswordConfirmationFormComponent(),
                 $this->getClassRepresentativeFormComponent(),
+                $this->getPolicyAcceptanceFormComponent(),
             ]);
     }
 
@@ -78,6 +80,22 @@ class Register extends BaseRegister
             ->dehydrated(false);
     }
 
+    protected function getPolicyAcceptanceFormComponent(): Component
+    {
+        $policyUrl = route('policy');
+        
+        return Checkbox::make('policy_accepted')
+            ->label(new HtmlString(
+                __('I agree to the ') . 
+                '<a href="' . $policyUrl . '" target="_blank" rel="noopener noreferrer" style="color: rgb(37, 99, 235); text-decoration: underline; font-weight: 500;">' . 
+                __('CPE Room Utilization Terms & Conditions') . 
+                '</a>'
+            ))
+            ->required()
+            ->accepted() // This ensures the checkbox must be checked (value must be true/1)
+            ->dehydrated(false); // Don't save this to the database
+    }
+
     /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -91,17 +109,5 @@ class Register extends BaseRegister
         unset($data['is_class_representative']);
         
         return $data;
-    }
-
-    protected function handleRegistration(array $data): Model
-    {
-        $user = parent::handleRegistration($data);
-        
-        // Assign the Class Representative role if the checkbox was checked
-        if ($this->isClassRepresentative) {
-            $user->assignRole('Class Representative');
-        }
-        
-        return $user;
     }
 }
