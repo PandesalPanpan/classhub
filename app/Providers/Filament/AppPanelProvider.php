@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\Register;
 use App\Filament\Pages\RequestSchedule;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -25,7 +26,7 @@ class AppPanelProvider extends PanelProvider
         return $panel
             ->id('app')
             ->path('app')
-            ->registration()
+            ->registration(Register::class)
             ->login()
             ->emailVerification(isRequired: true)
             ->profile()
