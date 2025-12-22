@@ -33,5 +33,9 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
         ]);
 
+        $this->call([
+            ScheduleSeeder::class,
+        ]);
+
     }
 }
