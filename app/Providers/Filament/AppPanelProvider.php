@@ -27,6 +27,7 @@ class AppPanelProvider extends PanelProvider
             ->path('app')
             ->registration()
             ->login()
+            ->emailVerification(isRequired: true)
             ->profile()
             ->topNavigation()
             ->colors([
