@@ -79,6 +79,7 @@ class RequestSchedule extends Page implements HasTable
                     ->label('Create Request')
                     ->icon('heroicon-o-plus')
                     ->color('success')
+                    ->visible(Auth::user()->can('Create:Schedule'))
                     ->schema(RequestScheduleForm::schema())
                     ->extraModalFooterActions([
                         Action::make('viewRules')
