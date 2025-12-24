@@ -1,0 +1,46 @@
+# Docker Compose configuration example for ClassHub
+# Copy this file to docker-compose.yml and update the values as needed
+# This is development environment configuration
+services:
+  app:
+    image: classhub:1.0
+    ports:
+      - "8080:8080"  # Web server port
+      - "5173:5173"  # Vite dev server port (if needed)
+    volumes:
+      - ./:/var/www/html
+    environment:
+      - PHP_OPCACHE_ENABLE=1
+    depends_on:
+      - postgres
+  
+  queue:
+    image: classhub:1.0
+    command: ["php", "/var/www/html/artisan", "queue:work", "--tries=3"]
+    stop_signal: SIGTERM
+    healthcheck:
+      test: ["CMD", "healthcheck-queue"]
+      start_period: 10s
+    environment:
+      - DB_HOST=postgres
+    depends_on:
+      - app
+  
+  postgres:
+    image: postgres:17.7
+    ports: 
+      - "5432:5432"  # PostgreSQL port
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      # Database configuration
+      - POSTGRES_DB=classhub  # Change to your preferred database name
+      - POSTGRES_PASSWORD=your_secure_password_here  # CHANGE THIS: Use a strong password
+      # Application configuration
+      - APP_URL=http://localhost:8080  # Change to your application URL
+      - APP_KEY=base64:your_app_key_here  # CHANGE THIS: Must be same APP_KEY'
+
+volumes:
+  postgres_data:
+    driver: local
+
