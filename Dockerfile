@@ -19,7 +19,8 @@ RUN docker-php-ext-install pdo_mysql zip
 RUN docker-php-ext-configure intl && docker-php-ext-install intl
 
 # Copy application code
-COPY . /var/www/html
+# COPY . /var/www/html
+COPY --chown=www-data:www-data . /var/www/html
 
 WORKDIR /var/www/html
 
