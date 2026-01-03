@@ -6,11 +6,24 @@ services:
     image: classhub:1.0
     ports:
       - "8080:8080"  # Web server port
-      - "5173:5173"  # Vite dev server port (if needed)
+      - "5173:5173"  # Vite dev server port
     volumes:
       - ./:/var/www/html
     environment:
       - PHP_OPCACHE_ENABLE=1
+      # Laravel environment variables
+      - APP_NAME=ClassHub
+      - VITE_APP_NAME=ClassHub
+      - APP_ENV=development
+      - APP_DEBUG=true
+      - APP_KEY=base64:your_app_key_here  # Change to your application key
+      - APP_URL=http://localhost:8080
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=classhub
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=your_secure_password_here  # Change to your database 
     depends_on:
       - postgres
   
@@ -23,6 +36,9 @@ services:
       start_period: 10s
     environment:
       - DB_HOST=postgres
+      - DB_DATABASE=classhub
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=your_secure_password_here  # Change to your database password
     depends_on:
       - app
   
@@ -35,10 +51,10 @@ services:
     environment:
       # Database configuration
       - POSTGRES_DB=classhub  # Change to your preferred database name
-      - POSTGRES_PASSWORD=your_secure_password_here  # CHANGE THIS: Use a strong password
+      - POSTGRES_PASSWORD=your_secure_password_here  # Change to your database password
       # Application configuration
       - APP_URL=http://localhost:8080  # Change to your application URL
-      - APP_KEY=base64:your_app_key_here  # CHANGE THIS: Must be same APP_KEY'
+      - APP_KEY=base64:your_app_key_here  # Change to your application key
 
 volumes:
   postgres_data:
