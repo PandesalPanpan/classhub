@@ -160,7 +160,7 @@ class ScheduleSeeder extends Seeder
             $dayOfWeek = $currentDate->dayOfWeek;
             if ($dayOfWeek >= Carbon::MONDAY && $dayOfWeek <= Carbon::SATURDAY) {
                 // Create multiple schedules per day (like a packed university schedule)
-                $schedulesPerDay = rand(44, 88); // 44-88 classes per day
+                $schedulesPerDay = rand(10, 15); // 44-88 classes per day
                 $attemptsPerDay = 0;
 
                 for ($i = 0; $i < $schedulesPerDay && $attemptsPerDay < $maxAttemptsPerDay; $i++) {
