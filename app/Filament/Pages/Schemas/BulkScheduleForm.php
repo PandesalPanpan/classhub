@@ -30,6 +30,7 @@ class BulkScheduleForm
                     ->mapWithKeys(fn ($room) => [$room->id => $room->room_full_label ?? $room->room_number])
                     ->toArray())
                 ->searchable()
+                ->preload(true)
                 ->required(),
             
             TextInput::make('subject')
