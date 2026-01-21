@@ -81,18 +81,6 @@ class BulkSchedule extends Page implements HasForms, HasActions
             $data['approver_id'] = Auth::id();
         }
 
-        // If ending on a specific date, ensure end_date exists
-        if (($data['recurrence_end_type'] ?? null) === 'on') {
-            $start = Carbon::parse($data['start_time']);
-            $data['end_date'] = $data['end_date'] ?? $start->format('Y-m-d H:i:s');
-        }
-
-        // Ensure first occurrence end_time respects duration if provided
-        if (isset($data['start_time']) && isset($data['duration_minutes'])) {
-            $start = Carbon::parse($data['start_time']);
-            $data['end_time'] = $start->copy()->addMinutes($data['duration_minutes']);
-        }
-
         $schedules = $this->generateSchedules($data);
         
         if (empty($schedules)) {
@@ -143,64 +131,52 @@ class BulkSchedule extends Page implements HasForms, HasActions
     protected function generateSchedules(array $data): array
     {
         $schedules = [];
-        $startTime = Carbon::parse($data['start_time']);
-        // Prefer provided duration; otherwise compute from end_time
-        if (isset($data['duration_minutes'])) {
-            $duration = (int) $data['duration_minutes'];
-        } else {
-            $endTime = Carbon::parse($data['end_time']);
-            $duration = $startTime->diffInMinutes($endTime);
-        }
-        
-        $recurrenceType = $data['recurrence_type'];
-        $recurrenceEndType = $data['recurrence_end_type'];
-        
-        // Determine end date
-        $endDate = null;
-        if ($recurrenceEndType === 'on') {
-            $endDate = Carbon::parse($data['end_date']);
-        } elseif ($recurrenceEndType === 'after') {
-            $occurrences = (int) ($data['occurrences'] ?? 12);
+        $duration = (int) ($data['duration_minutes'] ?? 60);
+
+        $daysOfWeek = collect($data['days_of_week'] ?? [])
+            ->map(fn ($v) => (int) $v)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($daysOfWeek)) {
+            return [];
         }
 
-        $currentDate = $startTime->copy();
-        $count = 0;
-        $maxOccurrences = $recurrenceEndType === 'after' ? $occurrences : 1000; // Safety limit
+        $startDate = Carbon::parse($data['semester_start_date'])->startOfDay();
+        $endDate = Carbon::parse($data['semester_end_date'])->endOfDay();
 
-        while ($count < $maxOccurrences) {
-            // Check if we've exceeded the end date
-            if ($recurrenceEndType === 'on' && $currentDate->gt($endDate)) {
-                break;
+        if ($startDate->gt($endDate)) {
+            return [];
+        }
+
+        // Safety limit: prevent accidental huge generation (e.g., multi-year range)
+        $maxCreated = 5000;
+        $created = 0;
+
+        $currentDate = $startDate->copy();
+
+        while ($currentDate->lte($endDate) && $created < $maxCreated) {
+            if (in_array($currentDate->dayOfWeek, $daysOfWeek, true)) {
+                $startDateTime = Carbon::parse($currentDate->toDateString() . ' ' . ($data['start_time'] ?? '00:00:00'));
+                $endDateTime = $startDateTime->copy()->addMinutes($duration);
+
+                $schedules[] = [
+                    'room_id' => $data['room_id'],
+                    'subject' => $data['subject'],
+                    'program_year_section' => $data['program_year_section'] ?? null,
+                    'start_time' => $startDateTime,
+                    'end_time' => $endDateTime,
+                    'status' => $data['status'] ?? ScheduleStatus::Approved->value,
+                    'requester_id' => $data['requester_id'] ?? Auth::id(),
+                    'approver_id' => $data['approver_id'] ?? Auth::id(),
+                    'remarks' => $data['remarks'] ?? null,
+                ];
+
+                $created++;
             }
 
-            // Create schedule for this occurrence
-            $scheduleData = [
-                'room_id' => $data['room_id'],
-                'title' => $data['title'],
-                'block' => $data['block'] ?? null,
-                'start_time' => $currentDate->copy(),
-                'end_time' => $currentDate->copy()->addMinutes($duration),
-                'status' => $data['status'] ?? ScheduleStatus::Approved->value,
-                'requester_id' => $data['requester_id'] ?? Auth::id(),
-                'approver_id' => $data['approver_id'] ?? Auth::id(),
-                'remarks' => $data['remarks'] ?? null,
-            ];
-
-            $schedules[] = $scheduleData;
-            $count++;
-
-            // Move to next occurrence based on recurrence type
-            switch ($recurrenceType) {
-                case 'daily':
-                    $currentDate->addDay();
-                    break;
-                case 'weekly':
-                    $currentDate->addWeek();
-                    break;
-                case 'monthly':
-                    $currentDate->addMonth();
-                    break;
-            }
+            $currentDate->addDay();
         }
 
         return $schedules;
