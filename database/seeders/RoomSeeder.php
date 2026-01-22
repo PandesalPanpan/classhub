@@ -14,9 +14,23 @@ class RoomSeeder extends Seeder
     {
         $slotNumber = 1;
         
-        for ($i = 300; $i <= 313; $i++) {
+        $rooms = [
+            'CEA302',
+            'CEA300',
+            'CEA316',
+            'CEA315',
+            'CEA314',
+            'CEA313',
+            'CEA312',
+            'CEA311',
+            'CEA310',
+            'CEA413',
+            'CEA207',
+        ];
+        
+        foreach ($rooms as $roomNumber) {
             $room = Room::firstOrCreate(
-                ['room_number' => (string) $i],
+                ['room_number' => $roomNumber],
                 [
                     'is_active' => true,
                     'room_type' => RoomType::cases()[array_rand(RoomType::cases())]->value,
