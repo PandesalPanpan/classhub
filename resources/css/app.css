@@ -156,6 +156,21 @@
     line-height: 1.2;
 }
 
+/* #classroom-calendar .fc-event-time {
+    font-size: 8px;
+} */
+
+/* Make time slots taller for better text display */
+/* #classroom-calendar .fc-timegrid-slot {
+    min-height: 60px;
+    height: 60px;
+} */
+
+#classroom-calendar .fc-timegrid-slot-lane {
+    min-height: 60px;
+    height: 60px;
+}
+
 /* #classroom-calendar .fc-timeline-event-harness .fc-event-main {
     display: flex;
     align-items: center;
@@ -168,7 +183,7 @@
 }
 
 /* Dark-mode specific refinements */
-:where(.dark) #classroom-calendar .fc-toolbar {
+/* :where(.dark) #classroom-calendar .fc-toolbar {
     color: #e5e7eb;
 }
 
@@ -208,4 +223,4 @@
 :where(.dark) #classroom-calendar .fc-timeline-header-cell-cushion,
 :where(.dark) #classroom-calendar .fc-timegrid-slot-label {
     color: #e5e7eb;
-}
+} */
