@@ -24,6 +24,21 @@ function hashTitleToColor(title) {
     return palette[idx];
 }
 
+function formatEventTitle(title) {
+    if (!title) return '';
+    // Only split at " - " after closing parenthesis (before professor name)
+    return title.replace(/\)\s*-\s*/g, ')\n');
+}
+
+function formatEventTimeRange(start, end) {
+    const fmt = (d) => {
+        const h = d.getHours();
+        const m = d.getMinutes();
+        return `${h}:${m.toString().padStart(2, '0')}`;
+    };
+    return `${fmt(start)}-${fmt(end)}`;
+}
+
 function withHashedColors(evts) {
     return (evts || []).map((evt) => {
         const color = hashTitleToColor(evt.title || '');
@@ -74,14 +89,21 @@ window.initClassroomCalendar = function (rooms, events) {
         // resourceLabelContent: function(arg) {
         //     return arg.resource.title;
         // },
-        // eventContent: function(arg) {
-        //     return {
-        //         html: '<div class="fc-event-title">' + arg.event.title + '</div>'
-        //     };
-        // },
+        eventContent: function(arg) {
+            const timeStr = formatEventTimeRange(arg.event.start, arg.event.end);
+            const formattedTitle = formatEventTitle(arg.event.title);
+            const htmlTitle = formattedTitle.replace(/\n/g, '<br>');
+            return {
+                html:
+                    '<div class="fc-event-main-frame">' +
+                    '<div class="fc-event-time">' + timeStr + '</div>' +
+                    '<div class="fc-event-title">' + htmlTitle + '</div>' +
+                    '</div>'
+            };
+        },
     });
 
     calendar.render();
-
+    console.log(events);
     return calendar;
 };
