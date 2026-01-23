@@ -35,4 +35,6 @@ return [
         ],
     ],
 
+    'iot_secret_key' => env('IOT_SECRET_KEY'),
+
 ];

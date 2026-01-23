@@ -8,6 +8,7 @@ use App\Policies\RoomPolicy;
 use App\Policies\SchedulePolicy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -25,7 +26,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        if (app()->isProduction()) {
+            URL::forceScheme('https');
+        }
+
         Model::unguard();
         Gate::policy(Schedule::class, SchedulePolicy::class);
         Gate::policy(Room::class, RoomPolicy::class);

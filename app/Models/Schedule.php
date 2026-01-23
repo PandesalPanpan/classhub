@@ -33,6 +33,25 @@ class Schedule extends Model
         ]);
     }
 
+    public function expire(): void
+    {
+        $this->update([
+            'status' => ScheduleStatus::Expired,
+        ]);
+    }
+
+    /**
+     * Calculate the datetime when 40% of the schedule duration has elapsed from the start time.
+     * This is used to determine when to verify key usage.
+     */
+    public function getFortyPercentDurationPoint(): \Illuminate\Support\Carbon
+    {
+        $durationInSeconds = $this->start_time->diffInSeconds($this->end_time);
+        $delayInSeconds = (int) ($durationInSeconds * 0.4);
+
+        return $this->start_time->copy()->addSeconds($delayInSeconds);
+    }
+
     public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class, 'room_id', 'id');

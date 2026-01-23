@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Rooms\Schemas;
 
 use App\KeyStatus;
+use App\RoomType;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -20,6 +21,11 @@ class RoomForm
                 Toggle::make('is_active')
                     ->required(),
                 TextInput::make('description'),
+                Select::make('room_type')
+                    ->options(RoomType::class)
+                    ->required(),
+                TextInput::make('capacity')
+                    ->required(),
                 Fieldset::make('Key')
                     ->relationship('key')
                     ->schema([
@@ -30,7 +36,7 @@ class RoomForm
                             ->options(KeyStatus::class)
                             ->default(KeyStatus::Disabled),
                     ])
-                    ->columns(2),
+
             ]);
     }
 }

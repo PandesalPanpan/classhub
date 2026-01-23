@@ -17,16 +17,19 @@ class UserSeeder extends Seeder
         User::create([
             'name' => 'Admin',
             'email' => 'admin@test.com',
+            'email_verified_at' => now(),
             'password' => Hash::make('password'),
         ])->assignRole('Superadmin');
         User::create([
             'name' => 'Moderator',
             'email' => 'moderator@test.com',
+            'email_verified_at' => now(),
             'password' => Hash::make('password'),
         ])->assignRole('Admin');
         User::create([
             'name' => 'Class Representative',
             'email' => 'class@test.com',
+            'email_verified_at' => now(),
             'password' => Hash::make('password'),
         ])->assignRole('Class Representative');
     }

@@ -1,0 +1,87 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE and Editor files
+.vscode
+.idea
+.phpstorm
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.fleet
+.nova
+.zed
+
+# Dependencies (will be installed in container)
+node_modules
+vendor
+npm-debug.log
+yarn-error.log
+
+# Build artifacts (will be regenerated)
+public/build
+public/hot
+public/storage
+storage/*.key
+storage/pail
+
+# Laravel specific
+bootstrap/cache/*
+!bootstrap/cache/.gitignore
+storage/framework/cache/*
+!storage/framework/cache/.gitignore
+storage/framework/sessions/*
+!storage/framework/sessions/.gitignore
+storage/framework/views/*
+!storage/framework/views/.gitignore
+storage/logs/*
+!storage/logs/.gitignore
+storage/debugbar/*
+!storage/debugbar/.gitignore
+
+# Testing
+.phpunit.cache
+.phpunit.result.cache
+coverage
+.nyc_output
+
+# Documentation
+README.md
+LICENSE
+*.md
+!CHANGELOG.md
+
+# Docker files
+docker-compose.yml
+docker-compose.*.yml
+Dockerfile
+Dockerfile.*
+.dockerignore
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+.circleci
+
+# Misc
+Homestead.json
+Homestead.yaml
+auth.json
+.phpactor.json
+boost.json
+
+# Temporary files
+*.tmp
+*.log
+*.cache
+

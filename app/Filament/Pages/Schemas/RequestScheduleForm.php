@@ -29,6 +29,7 @@ class RequestScheduleForm
                         ->relationship('room', 'room_number', modifyQueryUsing: function (Builder $query) {
                             return $query->where('is_active', true);
                         })
+                        ->getOptionLabelFromRecordUsing(fn ($record) => $record->room_full_label)
                         ->label('Preferred Room')
                         ->placeholder('Optional – choose your preferred room')
                         ->helperText('Admins assign final room.'),
@@ -43,7 +44,6 @@ class RequestScheduleForm
                     TextInput::make('instructor')
                         ->label('Instructor')
                         ->placeholder('e.g. Rolito Mahaguay')
-                        ->required(),
                 ])
                 ->columns([
                     'default' => 1,

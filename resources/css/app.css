@@ -129,14 +129,25 @@
     padding: 0.25rem 0.4rem;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
     background-color: var(--fc-event-bg-color, #3b82f6);
+    
+    /* Centers Time Duration */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 }
 
 #classroom-calendar .fc-event .fc-event-title {
-    font-size: 12px;
+    font-size: 0.7rem;
     line-height: 1.3;
     font-weight: 700;
     color: var(--fc-event-text-color);
     white-space: normal;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
 }
 
 /* Now indicator */
@@ -156,6 +167,21 @@
     line-height: 1.2;
 }
 
+/* #classroom-calendar .fc-event-time {
+    font-size: 8px;
+} */
+
+/* Make time slots taller for better text display */
+/* #classroom-calendar .fc-timegrid-slot {
+    min-height: 60px;
+    height: 60px;
+} */
+
+#classroom-calendar .fc-timegrid-slot-lane {
+    min-height: 60px;
+    height: 60px;
+}
+
 /* #classroom-calendar .fc-timeline-event-harness .fc-event-main {
     display: flex;
     align-items: center;
@@ -168,7 +194,7 @@
 }
 
 /* Dark-mode specific refinements */
-:where(.dark) #classroom-calendar .fc-toolbar {
+/* :where(.dark) #classroom-calendar .fc-toolbar {
     color: #e5e7eb;
 }
 
@@ -208,4 +234,4 @@
 :where(.dark) #classroom-calendar .fc-timeline-header-cell-cushion,
 :where(.dark) #classroom-calendar .fc-timegrid-slot-label {
     color: #e5e7eb;
-}
+} */

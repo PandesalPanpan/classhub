@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources\Schedules\Actions;
 
+use App\Jobs\VerifyScheduleKeyUsageJob;
+use App\KeyStatus;
+use App\Models\Room;
 use Filament\Actions\Action;
 use App\Models\Schedule;
 use App\ScheduleStatus;
@@ -103,6 +106,16 @@ class SchedulesActions
                         'approver_id' => Auth::id(),
                         'remarks' => $data['remarks'],
                     ]);
+
+                    // Refresh to get updated relationships
+                    $record->refresh();
+
+                    // Dispatch job only if the room key is not disabled
+                    $room = Room::with('key')->find($data['room_id']);
+                    if ($room?->key?->status !== KeyStatus::Disabled) {
+                        VerifyScheduleKeyUsageJob::dispatch($record)
+                            ->delay($record->getFortyPercentDurationPoint());
+                    }
 
                     if ($livewire) {
                         $livewire->dispatch('filament-fullcalendar--refresh');
