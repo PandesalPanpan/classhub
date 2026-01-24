@@ -7,7 +7,7 @@ use App\Models\Schedule;
 use Livewire\Component;
 use Livewire\Attributes\Title;
 
-class ClassroomCalendar extends Component
+class PublicCalendar extends Component
 {
 
     #[Title('Calendar')]
@@ -36,7 +36,7 @@ class ClassroomCalendar extends Component
             })
             ->toArray();
 
-        return view('livewire.classroom-calendar', [
+        return view('livewire.public-calendar', [
             'rooms' => $rooms,
             'events' => $events,
         ]);
