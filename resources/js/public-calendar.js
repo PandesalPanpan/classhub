@@ -119,7 +119,7 @@ window.initClassroomCalendar = function (rooms, events) {
             
             tooltip.innerHTML =
                 '<div class="fc-event-tooltip-title">' + (event.title || '') + '</div>' +
-                '<div class="fc-event-tooltip-content">' + timeStr + ' ' + htmlTitle + '</div>';
+                '<div class="fc-event-tooltip-content">' + timeStr + '</div>';
             
             tooltip.style.display = 'block';
             
