@@ -4,12 +4,13 @@ namespace App\Filament\Pages\Schemas;
 
 use App\Models\Room;
 use App\ScheduleStatus;
+use App\Services\ScheduleOverlapChecker;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -139,9 +140,9 @@ class BulkScheduleForm
             Section::make('Preview')
                 ->description('Preview of schedules that will be created based on your settings.')
                 ->schema([
-                    Placeholder::make('schedule_preview')
+                    TextEntry::make('schedule_preview')
                         ->label('')
-                        ->content(fn (Get $get) => self::generatePreview($get)),
+                        ->state(fn (Get $get) => self::generatePreview($get)),
                 ])
                 ->visible(fn (Get $get) => self::canShowPreview($get)),
         ];
@@ -178,6 +179,11 @@ class BulkScheduleForm
         if ($data['room_id']) {
             $room = Room::find($data['room_id']);
             $roomName = $room ? ($room->room_full_label ?? $room->room_number) : null;
+        }
+
+        // Check for conflicts if room is selected
+        if ($data['room_id'] && ! empty($preview['schedules'])) {
+            $preview = self::checkConflicts($preview, $data['room_id']);
         }
 
         return new HtmlString(
@@ -233,6 +239,9 @@ class BulkScheduleForm
                     'date' => $currentDate->format('F j, Y'),
                     'day' => $dayNames[$currentDate->dayOfWeek] ?? '',
                     'time' => $startDateTime->format('g:i A').' - '.$endDateTime->format('g:i A'),
+                    'start_time' => $startDateTime,
+                    'end_time' => $endDateTime,
+                    'has_conflict' => false,
                 ];
             }
 
@@ -243,5 +252,51 @@ class BulkScheduleForm
             'total' => count($schedules),
             'schedules' => $schedules,
         ];
+    }
+
+    protected static function checkConflicts(array $preview, int $roomId): array
+    {
+        if (empty($preview['schedules'])) {
+            return $preview;
+        }
+
+        // Prepare time ranges for batch checking
+        $timeRanges = collect($preview['schedules'])
+            ->map(fn ($schedule) => [
+                'start_time' => $schedule['start_time'],
+                'end_time' => $schedule['end_time'],
+            ])
+            ->all();
+
+        // Use the service to check for conflicts
+        $conflicts = ScheduleOverlapChecker::checkBatchConflicts($roomId, $timeRanges);
+
+        // Mark conflicts in preview schedules
+        foreach ($preview['schedules'] as $index => $schedule) {
+            $rangeKey = $schedule['start_time']->toIso8601String().'-'.$schedule['end_time']->toIso8601String();
+
+            if (isset($conflicts[$rangeKey])) {
+                $existingSchedule = $conflicts[$rangeKey];
+                $preview['schedules'][$index]['has_conflict'] = true;
+
+                // Build conflict description with subject, section, and instructor
+                $conflictParts = [];
+                if ($existingSchedule->subject) {
+                    $conflictParts[] = $existingSchedule->subject;
+                }
+                if ($existingSchedule->program_year_section) {
+                    $conflictParts[] = '('.$existingSchedule->program_year_section.')';
+                }
+                if ($existingSchedule->instructor) {
+                    $conflictParts[] = '- '.$existingSchedule->instructor;
+                }
+
+                $preview['schedules'][$index]['conflict_with'] = ! empty($conflictParts)
+                    ? implode(' ', $conflictParts)
+                    : 'Existing Schedule';
+            }
+        }
+
+        return $preview;
     }
 }
