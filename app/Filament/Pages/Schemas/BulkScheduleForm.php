@@ -5,11 +5,13 @@ namespace App\Filament\Pages\Schemas;
 use App\Models\Room;
 use App\ScheduleStatus;
 use App\Services\ScheduleOverlapChecker;
+use App\ScheduleType;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
+use Filament\Schemas\Components\Fieldset;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
@@ -20,6 +22,17 @@ use Illuminate\Support\HtmlString;
 
 class BulkScheduleForm
 {
+    /**
+     * Determine if the current schedule type is a template.
+     *
+     * Template schedules are "soft" patterns, so we force their status
+     * to Approved and hide other status options.
+     */
+    protected static function isTemplateType(?string $type): bool
+    {
+        return $type === ScheduleType::Template->value;
+    }
+
     public static function schema(): array
     {
         return [
@@ -70,7 +83,9 @@ class BulkScheduleForm
                         ->searchable()
                         ->live(),
 
-                    TimePicker::make('start_time')
+                    Fieldset::make('Time & Duration')
+                        ->schema([
+                            TimePicker::make('start_time')
                         ->label('Start Time')
                         ->required()
                         ->seconds(false)
@@ -95,6 +110,9 @@ class BulkScheduleForm
                         ->required()
                         ->helperText('How long each class session lasts')
                         ->live(),
+                        ])
+                        ->columns(2)
+                        ->columnSpanFull(),
 
                     Group::make([
                         DatePicker::make('semester_start_date')
@@ -123,10 +141,25 @@ class BulkScheduleForm
 
             Section::make('Additional Settings')
                 ->schema([
+                    Select::make('type')
+                        ->default(ScheduleType::Template->value)
+                        ->options([
+                            ScheduleType::Template->value => 'Template',
+                            ScheduleType::Request->value => 'Request',
+                        ])
+                        ->live()
+                        ->required()
+                        ->helperText('Schedules created from this bulk generator are marked as template schedules.'),
+
                     Select::make('status')
                         ->label('Status')
-                        ->options(ScheduleStatus::class)
+                        ->options(fn (Get $get) => self::isTemplateType($get('type'))
+                            ? [
+                                ScheduleStatus::Approved->value => 'Approved',
+                            ]
+                            : ScheduleStatus::class)
                         ->default(ScheduleStatus::Approved->value)
+                        ->disabled(fn (Get $get) => self::isTemplateType($get('type')))
                         ->required()
                         ->helperText('Initial status for all created schedules'),
 
