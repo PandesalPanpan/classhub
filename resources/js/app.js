@@ -1,2 +1,2 @@
 import './bootstrap';
-import './calendar';
+import './public-calendar';

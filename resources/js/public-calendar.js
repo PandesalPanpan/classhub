@@ -101,6 +101,59 @@ window.initClassroomCalendar = function (rooms, events) {
                     '</div>'
             };
         },
+        eventMouseEnter: function(mouseEnterInfo) {
+            const event = mouseEnterInfo.event;
+            const el = mouseEnterInfo.el;
+            const jsEvent = mouseEnterInfo.jsEvent;
+            const timeStr = formatEventTimeRange(event.start, event.end);
+            const formattedTitle = formatEventTitle(event.title);
+            const htmlTitle = formattedTitle.replace(/\n/g, '<br>');
+            
+            let tooltip = document.getElementById('fc-event-tooltip');
+            if (!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.id = 'fc-event-tooltip';
+                tooltip.className = 'fc-event-tooltip';
+                document.body.appendChild(tooltip);
+            }
+            
+            tooltip.innerHTML =
+                '<div class="fc-event-tooltip-title">' + (event.title || '') + '</div>' +
+                '<div class="fc-event-tooltip-content">' + timeStr + '</div>';
+            
+            tooltip.style.display = 'block';
+            
+            const offset = 12;
+            
+            function positionAt(x, y) {
+                tooltip.style.visibility = 'hidden';
+                const w = tooltip.offsetWidth;
+                const h = tooltip.offsetHeight;
+                let left = x + offset;
+                let top = y + offset;
+                if (left + w > window.innerWidth - 10) left = x - w - offset;
+                if (left < 10) left = 10;
+                if (top + h > window.innerHeight - 10) top = y - h - offset;
+                if (top < 10) top = 10;
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+                tooltip.style.visibility = 'visible';
+            }
+            
+            positionAt(jsEvent.clientX, jsEvent.clientY);
+            
+            const onMove = (e) => positionAt(e.clientX, e.clientY);
+            el.addEventListener('mousemove', onMove);
+            el.addEventListener('mouseleave', function leave() {
+                el.removeEventListener('mousemove', onMove);
+                el.removeEventListener('mouseleave', leave);
+                tooltip.style.display = 'none';
+            }, { once: true });
+        },
+        eventMouseLeave: function() {
+            const tooltip = document.getElementById('fc-event-tooltip');
+            if (tooltip) tooltip.style.display = 'none';
+        },
     });
 
     calendar.render();
