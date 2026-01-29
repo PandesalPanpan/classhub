@@ -293,8 +293,11 @@ class CalendarWidget extends FullCalendarWidget
 
         $schedules = $query->get();
 
+        // Check if room filter is set once, before mapping
+        $hasRoomFilter = (bool) $this->filterRoom;
+
         // Map schedules to calendar events using pre-fetched rooms
-        return $schedules->map(function ($schedule) use ($rooms) {
+        return $schedules->map(function ($schedule) use ($rooms, $hasRoomFilter) {
             $room = $rooms->get($schedule->room_id);
 
             // Skip if room not found (shouldn't happen, but safety check)
@@ -313,10 +316,16 @@ class CalendarWidget extends FullCalendarWidget
                 $color = $this->hashTitleToColor($schedule->subject ?? '');
             }
 
+            // Include room number in title if no room filter is set
+            $title = $schedule->event_title;
+            if (! $hasRoomFilter) {
+                $title = "{$room->room_number} - {$title}";
+            }
+
             return [
                 'id' => $schedule->id,
                 'resourceId' => "room-{$room->room_number}",
-                'title' => $isPending ? ($schedule->event_title) : $schedule->event_title,
+                'title' => $title,
                 'start' => $schedule->start_time->toIso8601String(),
                 'end' => $schedule->end_time->toIso8601String(),
                 'backgroundColor' => $color,
