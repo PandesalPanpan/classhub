@@ -150,6 +150,16 @@
     height: 100%;
 }
 
+/* Template schedules - grayed out to indicate they're soft schedules */
+#classroom-calendar .fc-event.template-schedule {
+    opacity: 0.6;
+    filter: grayscale(0.3);
+}
+
+#classroom-calendar .fc-event.template-schedule .fc-event-title {
+    opacity: 0.9;
+}
+
 /* Now indicator */
 #classroom-calendar .fc-now-indicator-line {
     border-color: #ef4444;

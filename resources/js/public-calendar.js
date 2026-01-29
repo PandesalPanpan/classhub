@@ -41,8 +41,35 @@ function formatEventTimeRange(start, end) {
 
 function withHashedColors(evts) {
     return (evts || []).map((evt) => {
+        // Template schedules are "soft" schedules that can be overridden
+        // They should be grayed out to indicate they're not final
+        const isTemplate = evt.type === 'TEMPLATE';
+        
+        if (isTemplate) {
+            // Gray color with reduced opacity for template schedules
+            // Ensure type is preserved in extendedProps for FullCalendar
+            return {
+                ...evt,
+                backgroundColor: '#6b7280', // gray-500
+                borderColor: '#6b7280',
+                classNames: ['template-schedule'],
+                extendedProps: {
+                    ...(evt.extendedProps || {}),
+                    type: evt.type, // Preserve type in extendedProps
+                },
+            };
+        }
+        
         const color = hashTitleToColor(evt.title || '');
-        return { ...evt, backgroundColor: color, borderColor: color };
+        return {
+            ...evt,
+            backgroundColor: color,
+            borderColor: color,
+            extendedProps: {
+                ...(evt.extendedProps || {}),
+                type: evt.type, // Preserve type in extendedProps for all events
+            },
+        };
     });
 }
 
@@ -117,9 +144,21 @@ window.initClassroomCalendar = function (rooms, events) {
                 document.body.appendChild(tooltip);
             }
             
-            tooltip.innerHTML =
+            // Check if this is a template schedule by checking the event's type property
+            // FullCalendar stores custom properties in extendedProps
+            const eventType = event.extendedProps?.type;
+            const isTemplateSchedule = eventType === 'TEMPLATE';
+            
+            let tooltipContent = 
                 '<div class="fc-event-tooltip-title">' + (event.title || '') + '</div>' +
-                '<div class="fc-event-tooltip-content">' + timeStr + '</div>';
+                '<div class="fc-event-tooltip-content">' + timeStr;
+            
+            if (isTemplateSchedule) {
+                tooltipContent += '<br><br><em style="color: #d1d5db; font-size: 0.8rem;">This is a soft schedule that can be overridden with an actual schedule.</em>';
+            }
+            
+            tooltipContent += '</div>';
+            tooltip.innerHTML = tooltipContent;
             
             tooltip.style.display = 'block';
             
