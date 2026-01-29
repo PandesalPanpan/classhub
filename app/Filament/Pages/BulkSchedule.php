@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Filament\Pages\Schemas\BulkScheduleForm;
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use App\ScheduleType;
 use Carbon\Carbon;
 use BackedEnum;
 use Filament\Actions\Concerns\InteractsWithActions;
@@ -167,6 +168,8 @@ class BulkSchedule extends Page implements HasForms, HasActions
                     'program_year_section' => $data['program_year_section'] ?? null,
                     'start_time' => $startDateTime,
                     'end_time' => $endDateTime,
+                    'instructor' => $data['instructor'] ?? null,
+                    'type' => $data['type'] ?? ScheduleType::Template->value,
                     'status' => $data['status'] ?? ScheduleStatus::Approved->value,
                     'requester_id' => $data['requester_id'] ?? Auth::id(),
                     'approver_id' => $data['approver_id'] ?? Auth::id(),

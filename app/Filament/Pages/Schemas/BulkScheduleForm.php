@@ -64,7 +64,13 @@ class BulkScheduleForm
                         ->maxLength(255)
                         ->placeholder('e.g. BSCPE 4-3P')
                         ->live(),
-                ]),
+
+                    TextInput::make('instructor')
+                        ->label('Instructor')
+                        ->placeholder('e.g. Rolito Mahaguay')
+                        ->live(),
+                ])
+                ->columns(2),
             Section::make('Schedule Details')
                 ->description('Set up the weekly schedule pattern. Select which days of the week this schedule applies.')
                 ->schema([
@@ -154,8 +160,7 @@ class BulkScheduleForm
                             ScheduleType::Request->value => 'Request',
                         ])
                         ->live()
-                        ->required()
-                        ->helperText('Schedules created from this bulk generator are marked as template schedules.'),
+                        ->required(),
 
                     Select::make('status')
                         ->label('Status')
