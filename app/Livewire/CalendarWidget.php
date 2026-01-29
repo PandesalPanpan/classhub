@@ -7,6 +7,7 @@ use App\Filament\Resources\Schedules\Schemas\ScheduleForm;
 use App\Models\Room;
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use App\ScheduleType;
 use App\Services\ScheduleOverlapChecker;
 use Carbon\Carbon;
 use Filament\Actions\Action;
@@ -301,8 +302,16 @@ class CalendarWidget extends FullCalendarWidget
                 return null;
             }
 
-            $color = $this->hashTitleToColor($schedule->subject ?? '');
+            $isTemplate = $schedule->type === ScheduleType::Template;
             $isPending = $schedule->status === \App\ScheduleStatus::Pending;
+
+            // Template schedules are "soft" schedules that can be overridden
+            // They should be grayed out to indicate they're not final
+            if ($isTemplate) {
+                $color = '#6b7280'; // gray-500
+            } else {
+                $color = $this->hashTitleToColor($schedule->subject ?? '');
+            }
 
             return [
                 'id' => $schedule->id,
@@ -313,7 +322,7 @@ class CalendarWidget extends FullCalendarWidget
                 'backgroundColor' => $color,
                 'borderColor' => $isPending ? '#f59e0b' : $color, // amber-500 for pending
                 'borderWidth' => $isPending ? 3 : 1,
-                'classNames' => $isPending ? ['pending-request'] : [],
+                'classNames' => $isPending ? ['pending-request'] : ($isTemplate ? ['template-schedule'] : []),
             ];
         })->filter()->values()->toArray();
     }
