@@ -68,6 +68,11 @@ class Schedule extends Model
         return $this->belongsTo(User::class, 'approver_id', 'id');
     }
 
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(Schedule::class, 'template_id', 'id');
+    }
+
     protected function casts(): array
     {
         return [

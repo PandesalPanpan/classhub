@@ -13,18 +13,22 @@ class ScheduleOverlapChecker
      *
      * @param  array<int,\App\ScheduleStatus>  $statuses
      * @param  int|null  $excludeId  Optional schedule ID to exclude (for edits)
+     * @param  array<int>  $excludeIds  Optional schedule IDs to exclude (e.g. template when creating override)
      */
     public static function hasOverlap(
         int $roomId,
         Carbon $start,
         Carbon $end,
         array $statuses = [ScheduleStatus::Approved, ScheduleStatus::Pending],
-        ?int $excludeId = null
+        ?int $excludeId = null,
+        array $excludeIds = []
     ): bool {
+        $exclude = array_filter(array_merge($excludeId ? [$excludeId] : [], $excludeIds));
+
         return Schedule::query()
             ->where('room_id', $roomId)
             ->whereIn('status', $statuses)
-            ->when($excludeId, fn ($query) => $query->where('id', '!=', $excludeId))
+            ->when($exclude !== [], fn ($query) => $query->whereNotIn('id', $exclude))
             ->where(function ($query) use ($start, $end) {
                 $query->where('start_time', '<', $end)
                     ->where('end_time', '>', $start);
