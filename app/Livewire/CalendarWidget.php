@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Filament\Pages\Schemas\OverrideTemplateForm;
 use App\Filament\Pages\Schemas\RequestScheduleForm;
 use App\Filament\Resources\Schedules\Schemas\ScheduleForm;
 use App\Models\Room;
@@ -293,11 +294,21 @@ class CalendarWidget extends FullCalendarWidget
 
         $schedules = $query->get();
 
+        // Hide templates only when an approved override exists (proven).
+        // Pending overrides do not hide the template.
+        $templateIdsHiddenByOverride = $schedules
+            ->whereNotNull('template_id')
+            ->where('status', ScheduleStatus::Approved)
+            ->pluck('template_id')
+            ->unique()
+            ->filter()
+            ->values();
+
         // Check if room filter is set once, before mapping
         $hasRoomFilter = (bool) $this->filterRoom;
 
         // Map schedules to calendar events using pre-fetched rooms
-        return $schedules->map(function ($schedule) use ($rooms, $hasRoomFilter) {
+        return $schedules->map(function ($schedule) use ($rooms, $hasRoomFilter, $templateIdsHiddenByOverride) {
             $room = $rooms->get($schedule->room_id);
 
             // Skip if room not found (shouldn't happen, but safety check)
@@ -306,6 +317,11 @@ class CalendarWidget extends FullCalendarWidget
             }
 
             $isTemplate = $schedule->type === ScheduleType::Template;
+
+            // Hide template only when an approved override exists (proven)
+            if ($isTemplate && $templateIdsHiddenByOverride->contains($schedule->id)) {
+                return null;
+            }
             $isPending = $schedule->status === \App\ScheduleStatus::Pending;
 
             // Template schedules are "soft" schedules that can be overridden
@@ -374,6 +390,114 @@ class CalendarWidget extends FullCalendarWidget
                 return Auth::check() && Auth::user()->can('Delete:Schedule');
             });
         $actions[] = $deleteAction;
+
+        $overrideAction = Action::make('override')
+            ->label('Request override')
+            ->icon('heroicon-o-arrow-path')
+            ->color('primary')
+            ->visible(function (): bool {
+                $template = $this->record;
+                if (! $template instanceof Schedule || $template->type !== ScheduleType::Template) {
+                    return false;
+                }
+                if (! Auth::check()) {
+                    return false;
+                }
+                $alreadyRequested = Schedule::query()
+                    ->where('template_id', $template->id)
+                    ->where('requester_id', Auth::id())
+                    ->whereIn('status', [ScheduleStatus::Pending, ScheduleStatus::Approved])
+                    ->exists();
+
+                return ! $alreadyRequested;
+            })
+            ->modalHeading('Request override')
+            ->modalDescription('Create a prioritized request for this slot. Admins will approve or reject it.')
+            ->modalSubmitActionLabel('Request override')
+            ->form(OverrideTemplateForm::schema())
+            ->mountUsing(function ($form): void {
+                $template = $this->record;
+                if ($template instanceof Schedule && $template->type === ScheduleType::Template) {
+                    $form->fill([
+                        'room_id' => $template->room_id,
+                        'start_time' => $template->start_time->format('Y-m-d H:i:s'),
+                        'end_time' => $template->end_time->format('Y-m-d H:i:s'),
+                        'subject' => $template->subject,
+                        'program_year_section' => $template->program_year_section,
+                        'instructor' => $template->instructor,
+                    ]);
+                }
+            })
+            ->action(function (array $data): void {
+                $template = $this->record;
+                if (! $template instanceof Schedule || $template->type !== ScheduleType::Template) {
+                    return;
+                }
+
+                $start = Carbon::parse($data['start_time']);
+                $end = Carbon::parse($data['end_time']);
+
+                $hasExistingOverride = Schedule::query()
+                    ->where('template_id', $template->id)
+                    ->whereIn('status', [ScheduleStatus::Pending, ScheduleStatus::Approved])
+                    ->where('start_time', '<', $end)
+                    ->where('end_time', '>', $start)
+                    ->exists();
+
+                if ($hasExistingOverride) {
+                    Notification::make()
+                        ->title('Override already requested')
+                        ->body('This template slot already has a pending or approved override.')
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                if (
+                    ScheduleOverlapChecker::hasOverlap(
+                        (int) $data['room_id'],
+                        $start,
+                        $end,
+                        [ScheduleStatus::Approved, ScheduleStatus::Pending],
+                        excludeIds: [$template->id]
+                    )
+                ) {
+                    Notification::make()
+                        ->title('Schedule conflict')
+                        ->body('Another approved or pending schedule exists in this room for the selected time.')
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                Schedule::create([
+                    'room_id' => $data['room_id'],
+                    'requester_id' => Auth::id(),
+                    'template_id' => $template->id,
+                    'is_priority' => true,
+                    'type' => ScheduleType::Request,
+                    'status' => ScheduleStatus::Pending,
+                    'start_time' => $data['start_time'],
+                    'end_time' => $data['end_time'],
+                    'subject' => $data['subject'],
+                    'program_year_section' => $data['program_year_section'],
+                    'instructor' => $data['instructor'] ?? null,
+                ]);
+
+                Notification::make()
+                    ->title('Override requested')
+                    ->body('Your prioritized request has been submitted. Admins will review it.')
+                    ->success()
+                    ->send();
+
+                $this->unmountAction();
+                $this->refreshRecords();
+            })
+            ->authorize(fn () => Auth::check() && Auth::user()?->can('Create:Schedule'));
+
+        $actions[] = $overrideAction;
 
         return $actions;
     }
