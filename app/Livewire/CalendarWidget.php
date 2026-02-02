@@ -337,6 +337,9 @@ class CalendarWidget extends FullCalendarWidget
             if (! $hasRoomFilter) {
                 $title = "{$room->room_number} - {$title}";
             }
+            if ($isPending) {
+                $title = "Pending: {$title}";
+            }
 
             return [
                 'id' => $schedule->id,
@@ -390,6 +393,35 @@ class CalendarWidget extends FullCalendarWidget
                 return Auth::check() && Auth::user()->can('Delete:Schedule');
             });
         $actions[] = $deleteAction;
+
+        // Add cancel action if request is pending and owned by the user.
+        // Name must not be 'cancel' or it is overwritten by the View action's getModalCancelAction().
+        $cancelAction = Action::make('cancelRequest')
+            ->label('Cancel request')
+            ->icon('heroicon-o-x-circle')
+            ->color('danger')
+            ->visible(function (): bool {
+                $record = $this->record;
+                if (! $record instanceof Schedule) {
+                    return false;
+                }
+
+                return $record->status === ScheduleStatus::Pending && $record->requester_id === Auth::id();
+            })
+            ->modalHeading('Cancel Request')
+            ->modalDescription('Are you sure you want to cancel this request? This action cannot be undone.')
+            ->modalSubmitActionLabel('Cancel Request')
+            ->modalCancelActionLabel('Keep Request')
+            ->modalWidth('md')
+            ->action(function (): void {
+                $record = $this->record;
+                if ($record instanceof Schedule) {
+                    $record->cancel();
+                    $this->unmountAction();
+                    $this->refreshRecords();
+                }
+            });
+        $actions[] = $cancelAction;
 
         $overrideAction = Action::make('override')
             ->label('Request override')
