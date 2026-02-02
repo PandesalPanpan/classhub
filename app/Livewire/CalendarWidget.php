@@ -84,6 +84,14 @@ class CalendarWidget extends FullCalendarWidget
                             'end_time' => $arguments['end'] ?? null,
                         ];
 
+                        // If start_time and end_time is set, calculate duration_minutes
+                        // Round to nearest 30 min to match RequestScheduleForm options (30–810)
+                        if (isset($fillData['start_time'], $fillData['end_time'])) {
+                            $duration = (int) Carbon::parse($fillData['start_time'])
+                                ->diffInMinutes(Carbon::parse($fillData['end_time']));
+                            $fillData['duration_minutes'] = max(30, min(810, (int) (round($duration / 30) * 30)));
+                        }
+
                         // Auto-fill room_id based on selected resource or filterRoom
                         $roomId = null;
 
