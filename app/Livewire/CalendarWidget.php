@@ -12,8 +12,8 @@ use App\ScheduleType;
 use App\Services\ScheduleOverlapChecker;
 use Carbon\Carbon;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Facades\Filament;
-use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
@@ -48,29 +48,32 @@ class CalendarWidget extends FullCalendarWidget
                 ->action(function () {
                     $this->dispatch('filament-fullcalendar--refresh');
                 }),
-            Action::make('filterRoom')
+            ActionGroup::make([
+                Action::make('filterRoomAll')
+                    ->label('All Rooms')
+                    ->icon($roomNumber ? null : 'heroicon-o-check')
+                    ->action(function () {
+                        $this->filterRoom = null;
+                        $this->dispatch('filament-fullcalendar--refresh');
+                    }),
+                ...Room::query()
+                    ->orderBy('room_number')
+                    ->pluck('room_number')
+                    ->map(fn (string $roomNum): Action => Action::make("filterRoom_{$roomNum}")
+                        ->label($roomNum)
+                        ->icon($roomNumber === $roomNum ? 'heroicon-o-check' : null)
+                        ->action(function () use ($roomNum) {
+                            $this->filterRoom = "room-{$roomNum}";
+                            $this->dispatch('filament-fullcalendar--refresh');
+                        }))
+                    ->values()
+                    ->all(),
+            ])
                 ->label($label)
                 ->icon('heroicon-o-funnel')
                 ->color($roomNumber ? 'primary' : 'gray')
                 ->badge($roomNumber ? null : 'All')
-                ->schema([
-                    Select::make('filterRoom')
-                        ->label('Room')
-                        ->placeholder('All Rooms')
-                        ->options(function () {
-                            return Room::query()
-                                ->orderBy('room_number')
-                                ->pluck('room_number', 'room_number')
-                                ->mapWithKeys(fn ($roomNumber) => ["room-{$roomNumber}" => $roomNumber])
-                                ->toArray();
-                        })
-                        ->searchable()
-                        ->default($this->filterRoom),
-                ])
-                ->action(function (array $data) {
-                    $this->filterRoom = $data['filterRoom'] ?? null;
-                    $this->dispatch('filament-fullcalendar--refresh');
-                }),
+                ->button(),
             CreateAction::make()
                 ->authorize(fn () => Auth::check() && Auth::user()->can('Create:Schedule'))
                 ->mountUsing(function ($form, array $arguments) {
