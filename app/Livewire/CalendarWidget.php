@@ -489,9 +489,9 @@ class CalendarWidget extends FullCalendarWidget
     {
         $actions = [];
 
-        // Approve Action if record is pending and is AdminPanel
-        if ($this->isAdminPanel() && $this->record instanceof Schedule && $this->record->status === ScheduleStatus::Pending) {
-            $approveAction= Action::make('approve')
+        // Approve Action if record is pending and is AdminPanel ($record is only set after an event is clicked)
+        if ($this->isAdminPanel() && isset($this->record) && $this->record instanceof Schedule && $this->record->status === ScheduleStatus::Pending) {
+            $approveAction = Action::make('approve')
                 ->label('Finalize Room & Approve')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
