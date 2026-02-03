@@ -16,8 +16,8 @@ use Filament\Actions\ActionGroup;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
-use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Saade\FilamentFullCalendar\Actions\CreateAction;
@@ -131,13 +131,12 @@ class CalendarWidget extends FullCalendarWidget
 
                         // Find pending schedules matching this slot so admin can approve them from the modal
                         if (isset($fillData['room_id'], $fillData['start_time'], $fillData['end_time'])) {
-                            $start = Carbon::parse($fillData['start_time'])->format('Y-m-d H:i:s');
-                            $end = Carbon::parse($fillData['end_time'])->format('Y-m-d H:i:s');
                             $this->matchingPendingSchedules = Schedule::query()
-                                ->where('status', ScheduleStatus::Pending)
-                                ->where('room_id', $fillData['room_id'])
-                                ->where('start_time', $start)
-                                ->where('end_time', $end)
+                                ->pendingForSlot(
+                                    $fillData['room_id'],
+                                    $fillData['start_time'],
+                                    $fillData['end_time']
+                                )
                                 ->with(['requester', 'room'])
                                 ->get();
                         }
@@ -254,14 +253,8 @@ class CalendarWidget extends FullCalendarWidget
             return $this->matchingPendingSchedules ?? [];
         }
 
-        $start = Carbon::parse($startTime)->format('Y-m-d H:i:s');
-        $end = Carbon::parse($endTime)->format('Y-m-d H:i:s');
-
         return Schedule::query()
-            ->where('status', ScheduleStatus::Pending)
-            ->where('room_id', $roomId)
-            ->where('start_time', $start)
-            ->where('end_time', $end)
+            ->pendingForSlot($roomId, $startTime, $endTime)
             ->with(['requester', 'room'])
             ->get();
     }
@@ -285,7 +278,7 @@ class CalendarWidget extends FullCalendarWidget
         ];
     }
 
-    protected function getRooms(): \Illuminate\Support\Collection
+    protected function getRooms(): Collection
     {
         // Check if cache is valid (exists and filter hasn't changed)
         if ($this->roomsCache !== null && $this->roomsCacheFilter === $this->filterRoom) {
@@ -354,12 +347,12 @@ class CalendarWidget extends FullCalendarWidget
         $query = Schedule::query()
             ->where(function ($q) {
                 // Always fetch approved schedules
-                $q->where('status', \App\ScheduleStatus::Approved);
+                $q->where('status', ScheduleStatus::Approved);
 
                 // In app panel, also fetch pending requests made by the logged-in user
                 if ($this->isAppPanel() && Auth::check()) {
                     $q->orWhere(function ($pendingQ) {
-                        $pendingQ->where('status', \App\ScheduleStatus::Pending)
+                        $pendingQ->where('status', ScheduleStatus::Pending)
                             ->where('requester_id', Auth::id());
                     });
                 }
@@ -407,7 +400,7 @@ class CalendarWidget extends FullCalendarWidget
             if ($isTemplate && $templateIdsHiddenByOverride->contains($schedule->id)) {
                 return null;
             }
-            $isPending = $schedule->status === \App\ScheduleStatus::Pending;
+            $isPending = $schedule->status === ScheduleStatus::Pending;
 
             // Template schedules are "soft" schedules that can be overridden
             // They should be grayed out to indicate they're not final
