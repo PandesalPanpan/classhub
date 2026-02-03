@@ -489,6 +489,18 @@ class CalendarWidget extends FullCalendarWidget
     {
         $actions = [];
 
+        // Approve Action if record is pending and is AdminPanel
+        if ($this->isAdminPanel() && $this->record instanceof Schedule && $this->record->status === ScheduleStatus::Pending) {
+            $approveAction= Action::make('approve')
+                ->label('Finalize Room & Approve')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                ->action(function () {
+                    $this->approveMatchingSchedule($this->record->id);
+                })->authorize(fn () => Auth::check() && Auth::user()->can('Update:Schedule'));
+            $actions[] = $approveAction;
+        }
+
         $editAction = EditAction::make()
             ->authorize(function (Schedule $record) {
                 return Auth::check() && Auth::user()->can('Update:Schedule');
