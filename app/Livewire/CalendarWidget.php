@@ -19,6 +19,7 @@ use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Saade\FilamentFullCalendar\Actions\CreateAction;
 use Saade\FilamentFullCalendar\Actions\DeleteAction;
@@ -31,6 +32,8 @@ class CalendarWidget extends FullCalendarWidget
     public Model|string|null $model = Schedule::class;
 
     public ?string $filterRoom = null;
+
+    public bool $showValidPendingSchedules = false;
 
     /** @var Collection<int, Schedule>|array<int, Schedule> */
     public Collection|array $matchingPendingSchedules = [];
@@ -185,6 +188,15 @@ class CalendarWidget extends FullCalendarWidget
                     }
 
                     return $data;
+                }),
+            Action::make('showValidPendingSchedules')
+                ->label(fn () => $this->showValidPendingSchedules ? 'Hide valid pending' : 'Show valid pending')
+                ->icon(fn () => $this->showValidPendingSchedules ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
+                ->color($this->showValidPendingSchedules ? 'primary' : 'gray')
+                ->visible(fn () => $this->isAdminPanel())
+                ->action(function () {
+                    $this->showValidPendingSchedules = ! $this->showValidPendingSchedules;
+                    $this->dispatch('filament-fullcalendar--refresh');
                 }),
             // ViewAction::make()
             //     ->modalHeading('View Schedule')
@@ -356,6 +368,21 @@ class CalendarWidget extends FullCalendarWidget
                             ->where('requester_id', Auth::id());
                     });
                 }
+
+                // In admin panel, optionally show valid pending (no approved schedule blocks them)
+                if ($this->isAdminPanel() && $this->showValidPendingSchedules) {
+                    $q->orWhere(function ($validPendingQ) {
+                        $validPendingQ->where('status', ScheduleStatus::Pending)
+                            ->whereNotExists(function ($sub) {
+                                $sub->select(DB::raw(1))
+                                    ->from('schedules as approved')
+                                    ->whereColumn('approved.room_id', 'schedules.room_id')
+                                    ->where('approved.status', ScheduleStatus::Approved)
+                                    ->where('approved.start_time', '<', DB::raw('schedules.end_time'))
+                                    ->where('approved.end_time', '>', DB::raw('schedules.start_time'));
+                            });
+                    });
+                }
             });
 
         // Apply room filter if set - filter by room_id instead of whereHas for better performance
@@ -406,6 +433,8 @@ class CalendarWidget extends FullCalendarWidget
             // They should be grayed out to indicate they're not final
             if ($isTemplate) {
                 $color = '#6b7280'; // gray-500
+            } elseif ($isPending) {
+                $color = '#ea580c'; // orange-600 – not in getColorPalette(), so pending stands out
             } else {
                 $color = $this->hashTitleToColor($schedule->subject ?? '');
             }
@@ -426,7 +455,7 @@ class CalendarWidget extends FullCalendarWidget
                 'start' => $schedule->start_time->toIso8601String(),
                 'end' => $schedule->end_time->toIso8601String(),
                 'backgroundColor' => $color,
-                'borderColor' => $isPending ? '#f59e0b' : $color, // amber-500 for pending
+                'borderColor' => $isPending ? '#ea580c' : $color, // orange-600 for pending (matches dedicated bg)
                 'borderWidth' => $isPending ? 3 : 1,
                 'classNames' => $isPending ? ['pending-request'] : ($isTemplate ? ['template-schedule'] : []),
             ];
