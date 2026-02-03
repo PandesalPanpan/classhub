@@ -16,6 +16,7 @@ use Filament\Actions\ActionGroup;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -31,7 +32,10 @@ class CalendarWidget extends FullCalendarWidget
 
     public ?string $filterRoom = null;
 
-    protected ?\Illuminate\Support\Collection $roomsCache = null;
+    /** @var Collection<int, Schedule>|array<int, Schedule> */
+    public Collection|array $matchingPendingSchedules = [];
+
+    protected ?Collection $roomsCache = null;
 
     protected ?string $roomsCacheFilter = null;
 
@@ -77,6 +81,8 @@ class CalendarWidget extends FullCalendarWidget
             CreateAction::make()
                 ->authorize(fn () => Auth::check() && Auth::user()->can('Create:Schedule'))
                 ->mountUsing(function ($form, array $arguments) {
+                    $this->matchingPendingSchedules = collect();
+
                     // Pre-fill start_time and end_time when a date selection is made
                     if (isset($arguments['type']) && $arguments['type'] === 'select') {
                         $fillData = [
@@ -122,6 +128,19 @@ class CalendarWidget extends FullCalendarWidget
                         }
 
                         $form->fill($fillData);
+
+                        // Find pending schedules matching this slot so admin can approve them from the modal
+                        if (isset($fillData['room_id'], $fillData['start_time'], $fillData['end_time'])) {
+                            $start = Carbon::parse($fillData['start_time'])->format('Y-m-d H:i:s');
+                            $end = Carbon::parse($fillData['end_time'])->format('Y-m-d H:i:s');
+                            $this->matchingPendingSchedules = Schedule::query()
+                                ->where('status', ScheduleStatus::Pending)
+                                ->where('room_id', $fillData['room_id'])
+                                ->where('start_time', $start)
+                                ->where('end_time', $end)
+                                ->with(['requester', 'room'])
+                                ->get();
+                        }
                     }
                 })
                 ->mutateDataUsing(function (array $data): array {
@@ -186,10 +205,65 @@ class CalendarWidget extends FullCalendarWidget
             return RequestScheduleForm::schema();
         }
 
-        // Admin panel: reuse ScheduleForm schema
-        $schema = ScheduleForm::configure(Schema::make());
+        // Schema is built before mountUsing runs, so compute matching pendings from current action args when available
+        $matchingPendings = $this->getMatchingPendingSchedulesForSchema();
+        $schema = ScheduleForm::configure(Schema::make(), $matchingPendings);
 
         return $schema->getComponents();
+    }
+
+    /**
+     * Matching pendings for the create modal. Schema is built before mountUsing, so we derive from
+     * the current mounted action arguments when it's create with type=select; otherwise use property.
+     *
+     * @return Collection<int, Schedule>|array<int, Schedule>
+     */
+    protected function getMatchingPendingSchedulesForSchema(): Collection|array
+    {
+        $lastAction = $this->mountedActions[array_key_last($this->mountedActions ?? []) ?? 0] ?? null;
+        if (
+            ($lastAction['name'] ?? null) !== 'create'
+            || ($lastAction['arguments']['type'] ?? null) !== 'select'
+        ) {
+            return $this->matchingPendingSchedules ?? [];
+        }
+
+        $arguments = $lastAction['arguments'] ?? [];
+        $startTime = $arguments['start'] ?? null;
+        $endTime = $arguments['end'] ?? null;
+        if (! $startTime || ! $endTime) {
+            return $this->matchingPendingSchedules ?? [];
+        }
+
+        $roomId = null;
+        if (isset($arguments['resource']['id']) && str_starts_with((string) $arguments['resource']['id'], 'room-')) {
+            $roomNumber = str_replace('room-', '', (string) $arguments['resource']['id']);
+            $room = Room::where('room_number', $roomNumber)->first();
+            if ($room) {
+                $roomId = $room->id;
+            }
+        }
+        if (! $roomId && $this->filterRoom) {
+            $roomNumber = str_replace('room-', '', $this->filterRoom);
+            $room = Room::where('room_number', $roomNumber)->first();
+            if ($room) {
+                $roomId = $room->id;
+            }
+        }
+        if (! $roomId) {
+            return $this->matchingPendingSchedules ?? [];
+        }
+
+        $start = Carbon::parse($startTime)->format('Y-m-d H:i:s');
+        $end = Carbon::parse($endTime)->format('Y-m-d H:i:s');
+
+        return Schedule::query()
+            ->where('status', ScheduleStatus::Pending)
+            ->where('room_id', $roomId)
+            ->where('start_time', $start)
+            ->where('end_time', $end)
+            ->with(['requester', 'room'])
+            ->get();
     }
 
     public function config(): array
@@ -543,5 +617,38 @@ class CalendarWidget extends FullCalendarWidget
         $actions[] = $overrideAction;
 
         return $actions;
+    }
+
+    public function approveMatchingSchedule(int $id): void
+    {
+        if (! Auth::check() || ! Auth::user()->can('Update:Schedule')) {
+            return;
+        }
+
+        $schedule = Schedule::query()->where('id', $id)->first();
+        if (! $schedule || $schedule->status !== ScheduleStatus::Pending) {
+            Notification::make()
+                ->title('Cannot approve')
+                ->body('Schedule not found or not pending.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $schedule->approve();
+
+        $this->matchingPendingSchedules = collect($this->matchingPendingSchedules)
+            ->filter(fn ($s) => (is_object($s) ? $s->id : ($s['id'] ?? null)) !== $id)
+            ->values();
+
+        Notification::make()
+            ->title('Schedule approved')
+            ->body('The pending request has been approved.')
+            ->success()
+            ->send();
+
+        $this->refreshRecords();
+        $this->unmountAction();
     }
 }
