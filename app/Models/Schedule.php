@@ -154,4 +154,102 @@ class Schedule extends Model
             },
         );
     }
+
+    /**
+     * Extract a date/time from the search string and return remaining text.
+     * Supports e.g. "Feb 17 6:30pm Garcia", "02/17/2026 18:00 Garcia", "6:30PM", "February".
+     *
+     * @return array{0: Carbon|null, 1: string, 2: string} [parsed date, text rest, date candidate string]
+     */
+    public static function extractDateAndTextFromSearch(string $search): array
+    {
+        $search = trim($search);
+        if ($search === '') {
+            return [null, '', ''];
+        }
+
+        $words = preg_split('/\s+/', $search, -1, PREG_SPLIT_NO_EMPTY);
+        if ($words === []) {
+            return [null, $search, ''];
+        }
+
+        for ($len = count($words); $len >= 1; $len--) {
+            $candidate = implode(' ', array_slice($words, 0, $len));
+            try {
+                $dt = Carbon::parse($candidate);
+                if ($dt->year >= 1970 && $dt->year <= 2100) {
+                    $textRest = $len < count($words)
+                        ? trim(implode(' ', array_slice($words, $len)))
+                        : '';
+
+                    return [$dt, $textRest, $candidate];
+                }
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+
+        return [null, $search, ''];
+    }
+
+    /**
+     * Apply schedule overlap constraint: record overlaps the given datetime (point-in-time, whole day, or whole month).
+     *
+     * @param  string  $dateCandidate  The substring that was parsed as date (e.g. "February" → whole month)
+     */
+    public static function applyScheduleOverlapConstraint(Builder $query, Carbon $dt, string $dateCandidate = ''): void
+    {
+        $hasTime = $dt->hour !== 0 || $dt->minute !== 0 || $dt->second !== 0;
+
+        if ($hasTime) {
+            $query->where('start_time', '<=', $dt->format('Y-m-d H:i:s'))
+                ->where('end_time', '>=', $dt->format('Y-m-d H:i:s'));
+        } elseif ($dateCandidate !== '' && count(preg_split('/\s+/', trim($dateCandidate), -1, PREG_SPLIT_NO_EMPTY)) === 1) {
+            $startOfMonth = $dt->copy()->startOfMonth()->format('Y-m-d H:i:s');
+            $endOfMonth = $dt->copy()->endOfMonth()->format('Y-m-d H:i:s');
+            $query->where('start_time', '<=', $endOfMonth)
+                ->where('end_time', '>=', $startOfMonth);
+        } else {
+            $startOfDay = $dt->copy()->startOfDay()->format('Y-m-d H:i:s');
+            $endOfDay = $dt->copy()->endOfDay()->format('Y-m-d H:i:s');
+            $query->where('start_time', '<=', $endOfDay)
+                ->where('end_time', '>=', $startOfDay);
+        }
+    }
+
+    /**
+     * Apply table search constraints: each word must match at least one of the searchable columns.
+     * Matches: subject, program_year_section, instructor, status, remarks, room.room_number, requester.name, approver.name.
+     */
+    public static function applyTableSearchConstraint(Builder $query, string $search): void
+    {
+        $search = trim($search);
+        if ($search === '') {
+            return;
+        }
+
+        $words = array_filter(
+            str_getcsv(preg_replace('/\s+/', ' ', $search), separator: ' ', escape: '\\'),
+            fn (string $word): bool => filled($word),
+        );
+        if ($words === []) {
+            return;
+        }
+
+        $model = new self;
+
+        foreach ($words as $word) {
+            $term = '%'.$word.'%';
+            $query->where(function (Builder $q) use ($term, $model): void {
+                $q->where('subject', 'like', $term)
+                    ->orWhere('program_year_section', 'like', $term)
+                    ->orWhere('instructor', 'like', $term)
+                    ->orWhere('remarks', 'like', $term)
+                    ->orWhere($model->getTable().'.status', 'like', $term)
+                    ->orWhereHas('room', fn (Builder $q) => $q->where('room_number', 'like', $term))
+                    ->orWhereHas('requester', fn (Builder $q) => $q->where('name', 'like', $term))
+                    ->orWhereHas('approver', fn (Builder $q) => $q->where('name', 'like', $term));
+            });
+        }
+    }
 }

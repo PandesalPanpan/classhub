@@ -12,7 +12,6 @@ use App\Filament\Resources\Schedules\Tables\SchedulesTable;
 use App\Models\Schedule;
 use App\ScheduleStatus;
 use BackedEnum;
-use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\GlobalSearch\GlobalSearchResult;
 use Filament\Resources\Resource;
@@ -83,71 +82,9 @@ class ScheduleResource extends Resource
         ];
     }
 
-    /**
-     * Extract a date/time from the search string and return remaining text.
-     * Supports e.g. "Feb 17 6:30pm Garcia", "02/17/2026 18:00 Garcia", "February".
-     *
-     * @return array{0: Carbon|null, 1: string, 2: string} [parsed date, text rest, date candidate string]
-     */
-    protected static function extractDateAndTextFromSearch(string $search): array
-    {
-        $search = trim($search);
-        if ($search === '') {
-            return [null, '', ''];
-        }
-
-        $words = preg_split('/\s+/', $search, -1, PREG_SPLIT_NO_EMPTY);
-        if ($words === []) {
-            return [null, $search, ''];
-        }
-
-        for ($len = count($words); $len >= 1; $len--) {
-            $candidate = implode(' ', array_slice($words, 0, $len));
-            try {
-                $dt = Carbon::parse($candidate);
-                if ($dt->year >= 1970 && $dt->year <= 2100) {
-                    $textRest = $len < count($words)
-                        ? trim(implode(' ', array_slice($words, $len)))
-                        : '';
-
-                    return [$dt, $textRest, $candidate];
-                }
-            } catch (\Throwable) {
-                continue;
-            }
-        }
-
-        return [null, $search, ''];
-    }
-
-    /**
-     * Apply schedule overlap constraint: record overlaps the given datetime (point-in-time, whole day, or whole month).
-     *
-     * @param  string  $dateCandidate  The substring that was parsed as date (e.g. "February" → whole month)
-     */
-    protected static function applyScheduleOverlapConstraint(Builder $query, Carbon $dt, string $dateCandidate = ''): void
-    {
-        $hasTime = $dt->hour !== 0 || $dt->minute !== 0 || $dt->second !== 0;
-
-        if ($hasTime) {
-            $query->where('start_time', '<=', $dt->format('Y-m-d H:i:s'))
-                ->where('end_time', '>=', $dt->format('Y-m-d H:i:s'));
-        } elseif ($dateCandidate !== '' && str_word_count($dateCandidate) === 1) {
-            $startOfMonth = $dt->copy()->startOfMonth()->format('Y-m-d H:i:s');
-            $endOfMonth = $dt->copy()->endOfMonth()->format('Y-m-d H:i:s');
-            $query->where('start_time', '<=', $endOfMonth)
-                ->where('end_time', '>=', $startOfMonth);
-        } else {
-            $startOfDay = $dt->copy()->startOfDay()->format('Y-m-d H:i:s');
-            $endOfDay = $dt->copy()->endOfDay()->format('Y-m-d H:i:s');
-            $query->where('start_time', '<=', $endOfDay)
-                ->where('end_time', '>=', $startOfDay);
-        }
-    }
-
     public static function getGlobalSearchResults(string $search): Collection
     {
-        [$parsedDate, $textSearch, $dateCandidate] = static::extractDateAndTextFromSearch($search);
+        [$parsedDate, $textSearch, $dateCandidate] = Schedule::extractDateAndTextFromSearch($search);
 
         $query = static::getGlobalSearchEloquentQuery();
 
@@ -155,7 +92,7 @@ class ScheduleResource extends Resource
 
         if ($parsedDate !== null) {
             $query->where(function (Builder $q) use ($parsedDate, $dateCandidate): void {
-                static::applyScheduleOverlapConstraint($q, $parsedDate, $dateCandidate);
+                Schedule::applyScheduleOverlapConstraint($q, $parsedDate, $dateCandidate);
             });
         }
 
