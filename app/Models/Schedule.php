@@ -156,8 +156,24 @@ class Schedule extends Model
     }
 
     /**
+     * Whether the string looks like a date/time (contains digits or is a month name).
+     * Used to avoid treating names like "Garcia" as dates when Carbon parses them.
+     */
+    protected static function isDateLike(string $candidate): bool
+    {
+        if (preg_match('/\d/', $candidate) === 1) {
+            return true;
+        }
+        $lower = strtolower(trim($candidate));
+        $months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december', 'jan', 'feb', 'mar', 'apr', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+        return in_array($lower, $months, true);
+    }
+
+    /**
      * Extract a date/time from the search string and return remaining text.
      * Supports e.g. "Feb 17 6:30pm Garcia", "02/17/2026 18:00 Garcia", "6:30PM", "February".
+     * Only treats a substring as a date if it looks date-like (digits or month name), so "Garcia" stays text-only.
      *
      * @return array{0: Carbon|null, 1: string, 2: string} [parsed date, text rest, date candidate string]
      */
@@ -177,7 +193,7 @@ class Schedule extends Model
             $candidate = implode(' ', array_slice($words, 0, $len));
             try {
                 $dt = Carbon::parse($candidate);
-                if ($dt->year >= 1970 && $dt->year <= 2100) {
+                if ($dt->year >= 1970 && $dt->year <= 2100 && static::isDateLike($candidate)) {
                     $textRest = $len < count($words)
                         ? trim(implode(' ', array_slice($words, $len)))
                         : '';
@@ -237,18 +253,20 @@ class Schedule extends Model
         }
 
         $model = new self;
+        $table = $model->getTable();
 
         foreach ($words as $word) {
             $term = '%'.$word.'%';
-            $query->where(function (Builder $q) use ($term, $model): void {
-                $q->where('subject', 'like', $term)
-                    ->orWhere('program_year_section', 'like', $term)
-                    ->orWhere('instructor', 'like', $term)
-                    ->orWhere('remarks', 'like', $term)
-                    ->orWhere($model->getTable().'.status', 'like', $term)
-                    ->orWhereHas('room', fn (Builder $q) => $q->where('room_number', 'like', $term))
-                    ->orWhereHas('requester', fn (Builder $q) => $q->where('name', 'like', $term))
-                    ->orWhereHas('approver', fn (Builder $q) => $q->where('name', 'like', $term));
+            $termLower = strtolower($term);
+            $query->where(function (Builder $q) use ($termLower, $table): void {
+                $q->whereRaw('LOWER('.$table.'.subject) LIKE ?', [$termLower])
+                    ->orWhereRaw('LOWER('.$table.'.program_year_section) LIKE ?', [$termLower])
+                    ->orWhereRaw('LOWER('.$table.'.instructor) LIKE ?', [$termLower])
+                    ->orWhereRaw('LOWER('.$table.'.remarks) LIKE ?', [$termLower])
+                    ->orWhereRaw('LOWER('.$table.'.status) LIKE ?', [$termLower])
+                    ->orWhereHas('room', fn (Builder $q) => $q->whereRaw('LOWER(room_number) LIKE ?', [$termLower]))
+                    ->orWhereHas('requester', fn (Builder $q) => $q->whereRaw('LOWER(name) LIKE ?', [$termLower]))
+                    ->orWhereHas('approver', fn (Builder $q) => $q->whereRaw('LOWER(name) LIKE ?', [$termLower]));
             });
         }
     }
