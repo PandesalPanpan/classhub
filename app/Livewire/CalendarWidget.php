@@ -2,19 +2,22 @@
 
 namespace App\Livewire;
 
+use App\Filament\Pages\Schemas\OverrideTemplateForm;
 use App\Filament\Pages\Schemas\RequestScheduleForm;
 use App\Filament\Resources\Schedules\Schemas\ScheduleForm;
 use App\Models\Room;
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use App\ScheduleType;
 use App\Services\ScheduleOverlapChecker;
 use Carbon\Carbon;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Facades\Filament;
-use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Saade\FilamentFullCalendar\Actions\CreateAction;
@@ -29,7 +32,10 @@ class CalendarWidget extends FullCalendarWidget
 
     public ?string $filterRoom = null;
 
-    protected ?\Illuminate\Support\Collection $roomsCache = null;
+    /** @var Collection<int, Schedule>|array<int, Schedule> */
+    public Collection|array $matchingPendingSchedules = [];
+
+    protected ?Collection $roomsCache = null;
 
     protected ?string $roomsCacheFilter = null;
 
@@ -46,38 +52,51 @@ class CalendarWidget extends FullCalendarWidget
                 ->action(function () {
                     $this->dispatch('filament-fullcalendar--refresh');
                 }),
-            Action::make('filterRoom')
+            ActionGroup::make([
+                Action::make('filterRoomAll')
+                    ->label('All Rooms')
+                    ->icon($roomNumber ? null : 'heroicon-o-check')
+                    ->action(function () {
+                        $this->filterRoom = null;
+                        $this->dispatch('filament-fullcalendar--refresh');
+                    }),
+                ...Room::query()
+                    ->orderBy('room_number')
+                    ->pluck('room_number')
+                    ->map(fn (string $roomNum): Action => Action::make("filterRoom_{$roomNum}")
+                        ->label($roomNum)
+                        ->icon($roomNumber === $roomNum ? 'heroicon-o-check' : null)
+                        ->action(function () use ($roomNum) {
+                            $this->filterRoom = "room-{$roomNum}";
+                            $this->dispatch('filament-fullcalendar--refresh');
+                        }))
+                    ->values()
+                    ->all(),
+            ])
                 ->label($label)
                 ->icon('heroicon-o-funnel')
                 ->color($roomNumber ? 'primary' : 'gray')
                 ->badge($roomNumber ? null : 'All')
-                ->schema([
-                    Select::make('filterRoom')
-                        ->label('Room')
-                        ->placeholder('All Rooms')
-                        ->options(function () {
-                            return Room::query()
-                                ->orderBy('room_number')
-                                ->pluck('room_number', 'room_number')
-                                ->mapWithKeys(fn ($roomNumber) => ["room-{$roomNumber}" => $roomNumber])
-                                ->toArray();
-                        })
-                        ->searchable()
-                        ->default($this->filterRoom),
-                ])
-                ->action(function (array $data) {
-                    $this->filterRoom = $data['filterRoom'] ?? null;
-                    $this->dispatch('filament-fullcalendar--refresh');
-                }),
+                ->button(),
             CreateAction::make()
                 ->authorize(fn () => Auth::check() && Auth::user()->can('Create:Schedule'))
                 ->mountUsing(function ($form, array $arguments) {
+                    $this->matchingPendingSchedules = collect();
+
                     // Pre-fill start_time and end_time when a date selection is made
                     if (isset($arguments['type']) && $arguments['type'] === 'select') {
                         $fillData = [
                             'start_time' => $arguments['start'] ?? null,
                             'end_time' => $arguments['end'] ?? null,
                         ];
+
+                        // If start_time and end_time is set, calculate duration_minutes
+                        // Round to nearest 30 min to match RequestScheduleForm options (30–810)
+                        if (isset($fillData['start_time'], $fillData['end_time'])) {
+                            $duration = (int) Carbon::parse($fillData['start_time'])
+                                ->diffInMinutes(Carbon::parse($fillData['end_time']));
+                            $fillData['duration_minutes'] = max(30, min(810, (int) (round($duration / 30) * 30)));
+                        }
 
                         // Auto-fill room_id based on selected resource or filterRoom
                         $roomId = null;
@@ -109,6 +128,18 @@ class CalendarWidget extends FullCalendarWidget
                         }
 
                         $form->fill($fillData);
+
+                        // Find pending schedules matching this slot so admin can approve them from the modal
+                        if (isset($fillData['room_id'], $fillData['start_time'], $fillData['end_time'])) {
+                            $this->matchingPendingSchedules = Schedule::query()
+                                ->pendingForSlot(
+                                    $fillData['room_id'],
+                                    $fillData['start_time'],
+                                    $fillData['end_time']
+                                )
+                                ->with(['requester', 'room'])
+                                ->get();
+                        }
                     }
                 })
                 ->mutateDataUsing(function (array $data): array {
@@ -173,10 +204,59 @@ class CalendarWidget extends FullCalendarWidget
             return RequestScheduleForm::schema();
         }
 
-        // Admin panel: reuse ScheduleForm schema
-        $schema = ScheduleForm::configure(Schema::make());
+        // Schema is built before mountUsing runs, so compute matching pendings from current action args when available
+        $matchingPendings = $this->getMatchingPendingSchedulesForSchema();
+        $schema = ScheduleForm::configure(Schema::make(), $matchingPendings);
 
         return $schema->getComponents();
+    }
+
+    /**
+     * Matching pendings for the create modal. Schema is built before mountUsing, so we derive from
+     * the current mounted action arguments when it's create with type=select; otherwise use property.
+     *
+     * @return Collection<int, Schedule>|array<int, Schedule>
+     */
+    protected function getMatchingPendingSchedulesForSchema(): Collection|array
+    {
+        $lastAction = $this->mountedActions[array_key_last($this->mountedActions ?? []) ?? 0] ?? null;
+        if (
+            ($lastAction['name'] ?? null) !== 'create'
+            || ($lastAction['arguments']['type'] ?? null) !== 'select'
+        ) {
+            return $this->matchingPendingSchedules ?? [];
+        }
+
+        $arguments = $lastAction['arguments'] ?? [];
+        $startTime = $arguments['start'] ?? null;
+        $endTime = $arguments['end'] ?? null;
+        if (! $startTime || ! $endTime) {
+            return $this->matchingPendingSchedules ?? [];
+        }
+
+        $roomId = null;
+        if (isset($arguments['resource']['id']) && str_starts_with((string) $arguments['resource']['id'], 'room-')) {
+            $roomNumber = str_replace('room-', '', (string) $arguments['resource']['id']);
+            $room = Room::where('room_number', $roomNumber)->first();
+            if ($room) {
+                $roomId = $room->id;
+            }
+        }
+        if (! $roomId && $this->filterRoom) {
+            $roomNumber = str_replace('room-', '', $this->filterRoom);
+            $room = Room::where('room_number', $roomNumber)->first();
+            if ($room) {
+                $roomId = $room->id;
+            }
+        }
+        if (! $roomId) {
+            return $this->matchingPendingSchedules ?? [];
+        }
+
+        return Schedule::query()
+            ->pendingForSlot($roomId, $startTime, $endTime)
+            ->with(['requester', 'room'])
+            ->get();
     }
 
     public function config(): array
@@ -198,7 +278,7 @@ class CalendarWidget extends FullCalendarWidget
         ];
     }
 
-    protected function getRooms(): \Illuminate\Support\Collection
+    protected function getRooms(): Collection
     {
         // Check if cache is valid (exists and filter hasn't changed)
         if ($this->roomsCache !== null && $this->roomsCacheFilter === $this->filterRoom) {
@@ -267,12 +347,12 @@ class CalendarWidget extends FullCalendarWidget
         $query = Schedule::query()
             ->where(function ($q) {
                 // Always fetch approved schedules
-                $q->where('status', \App\ScheduleStatus::Approved);
+                $q->where('status', ScheduleStatus::Approved);
 
                 // In app panel, also fetch pending requests made by the logged-in user
                 if ($this->isAppPanel() && Auth::check()) {
                     $q->orWhere(function ($pendingQ) {
-                        $pendingQ->where('status', \App\ScheduleStatus::Pending)
+                        $pendingQ->where('status', ScheduleStatus::Pending)
                             ->where('requester_id', Auth::id());
                     });
                 }
@@ -292,8 +372,21 @@ class CalendarWidget extends FullCalendarWidget
 
         $schedules = $query->get();
 
+        // Hide templates only when an approved override exists (proven).
+        // Pending overrides do not hide the template.
+        $templateIdsHiddenByOverride = $schedules
+            ->whereNotNull('template_id')
+            ->where('status', ScheduleStatus::Approved)
+            ->pluck('template_id')
+            ->unique()
+            ->filter()
+            ->values();
+
+        // Check if room filter is set once, before mapping
+        $hasRoomFilter = (bool) $this->filterRoom;
+
         // Map schedules to calendar events using pre-fetched rooms
-        return $schedules->map(function ($schedule) use ($rooms) {
+        return $schedules->map(function ($schedule) use ($rooms, $hasRoomFilter, $templateIdsHiddenByOverride) {
             $room = $rooms->get($schedule->room_id);
 
             // Skip if room not found (shouldn't happen, but safety check)
@@ -301,19 +394,41 @@ class CalendarWidget extends FullCalendarWidget
                 return null;
             }
 
-            $color = $this->hashTitleToColor($schedule->subject ?? '');
-            $isPending = $schedule->status === \App\ScheduleStatus::Pending;
+            $isTemplate = $schedule->type === ScheduleType::Template;
+
+            // Hide template only when an approved override exists (proven)
+            if ($isTemplate && $templateIdsHiddenByOverride->contains($schedule->id)) {
+                return null;
+            }
+            $isPending = $schedule->status === ScheduleStatus::Pending;
+
+            // Template schedules are "soft" schedules that can be overridden
+            // They should be grayed out to indicate they're not final
+            if ($isTemplate) {
+                $color = '#6b7280'; // gray-500
+            } else {
+                $color = $this->hashTitleToColor($schedule->subject ?? '');
+            }
+
+            // Include room number in title if no room filter is set
+            $title = $schedule->event_title;
+            if (! $hasRoomFilter) {
+                $title = "{$room->room_number} - {$title}";
+            }
+            if ($isPending) {
+                $title = "Pending: {$title}";
+            }
 
             return [
                 'id' => $schedule->id,
                 'resourceId' => "room-{$room->room_number}",
-                'title' => $isPending ? ($schedule->event_title) : $schedule->event_title,
+                'title' => $title,
                 'start' => $schedule->start_time->toIso8601String(),
                 'end' => $schedule->end_time->toIso8601String(),
                 'backgroundColor' => $color,
                 'borderColor' => $isPending ? '#f59e0b' : $color, // amber-500 for pending
                 'borderWidth' => $isPending ? 3 : 1,
-                'classNames' => $isPending ? ['pending-request'] : [],
+                'classNames' => $isPending ? ['pending-request'] : ($isTemplate ? ['template-schedule'] : []),
             ];
         })->filter()->values()->toArray();
     }
@@ -357,6 +472,176 @@ class CalendarWidget extends FullCalendarWidget
             });
         $actions[] = $deleteAction;
 
+        // Add cancel action if request is pending and owned by the user.
+        // Name must not be 'cancel' or it is overwritten by the View action's getModalCancelAction().
+        $cancelAction = Action::make('cancelRequest')
+            ->label('Cancel request')
+            ->icon('heroicon-o-x-circle')
+            ->color('danger')
+            ->visible(function (): bool {
+                $record = $this->record;
+                if (! $record instanceof Schedule) {
+                    return false;
+                }
+
+                return $record->status === ScheduleStatus::Pending && $record->requester_id === Auth::id();
+            })
+            ->modalHeading('Cancel Request')
+            ->modalDescription('Are you sure you want to cancel this request? This action cannot be undone.')
+            ->modalSubmitActionLabel('Cancel Request')
+            ->modalCancelActionLabel('Keep Request')
+            ->modalWidth('md')
+            ->action(function (): void {
+                $record = $this->record;
+                if ($record instanceof Schedule) {
+                    $record->cancel();
+                    $this->unmountAction();
+                    $this->refreshRecords();
+                }
+            });
+        $actions[] = $cancelAction;
+
+        $overrideAction = Action::make('override')
+            ->label('Request override')
+            ->icon('heroicon-o-arrow-path')
+            ->color('primary')
+            ->visible(function (): bool {
+                $template = $this->record;
+                if (! $template instanceof Schedule || $template->type !== ScheduleType::Template) {
+                    return false;
+                }
+                if (! Auth::check()) {
+                    return false;
+                }
+                $alreadyRequested = Schedule::query()
+                    ->where('template_id', $template->id)
+                    ->where('requester_id', Auth::id())
+                    ->whereIn('status', [ScheduleStatus::Pending, ScheduleStatus::Approved])
+                    ->exists();
+
+                return ! $alreadyRequested;
+            })
+            ->modalHeading('Request override')
+            ->modalDescription('Create a prioritized request for this slot. Admins will approve or reject it.')
+            ->modalSubmitActionLabel('Request override')
+            ->form(OverrideTemplateForm::schema())
+            ->mountUsing(function ($form): void {
+                $template = $this->record;
+                if ($template instanceof Schedule && $template->type === ScheduleType::Template) {
+                    $form->fill([
+                        'room_id' => $template->room_id,
+                        'start_time' => $template->start_time->format('Y-m-d H:i:s'),
+                        'end_time' => $template->end_time->format('Y-m-d H:i:s'),
+                        'subject' => $template->subject,
+                        'program_year_section' => $template->program_year_section,
+                        'instructor' => $template->instructor,
+                    ]);
+                }
+            })
+            ->action(function (array $data): void {
+                $template = $this->record;
+                if (! $template instanceof Schedule || $template->type !== ScheduleType::Template) {
+                    return;
+                }
+
+                $start = Carbon::parse($data['start_time']);
+                $end = Carbon::parse($data['end_time']);
+
+                $hasExistingOverride = Schedule::query()
+                    ->where('template_id', $template->id)
+                    ->whereIn('status', [ScheduleStatus::Pending, ScheduleStatus::Approved])
+                    ->where('start_time', '<', $end)
+                    ->where('end_time', '>', $start)
+                    ->exists();
+
+                if ($hasExistingOverride) {
+                    Notification::make()
+                        ->title('Override already requested')
+                        ->body('This template slot already has a pending or approved override.')
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                if (
+                    ScheduleOverlapChecker::hasOverlap(
+                        (int) $data['room_id'],
+                        $start,
+                        $end,
+                        [ScheduleStatus::Approved, ScheduleStatus::Pending],
+                        excludeIds: [$template->id]
+                    )
+                ) {
+                    Notification::make()
+                        ->title('Schedule conflict')
+                        ->body('Another approved or pending schedule exists in this room for the selected time.')
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                Schedule::create([
+                    'room_id' => $data['room_id'],
+                    'requester_id' => Auth::id(),
+                    'template_id' => $template->id,
+                    'is_priority' => true,
+                    'type' => ScheduleType::Request,
+                    'status' => ScheduleStatus::Pending,
+                    'start_time' => $data['start_time'],
+                    'end_time' => $data['end_time'],
+                    'subject' => $data['subject'],
+                    'program_year_section' => $data['program_year_section'],
+                    'instructor' => $data['instructor'] ?? null,
+                ]);
+
+                Notification::make()
+                    ->title('Override requested')
+                    ->body('Your prioritized request has been submitted. Admins will review it.')
+                    ->success()
+                    ->send();
+
+                $this->unmountAction();
+                $this->refreshRecords();
+            })
+            ->authorize(fn () => Auth::check() && Auth::user()?->can('Create:Schedule'));
+
+        $actions[] = $overrideAction;
+
         return $actions;
+    }
+
+    public function approveMatchingSchedule(int $id): void
+    {
+        if (! Auth::check() || ! Auth::user()->can('Update:Schedule')) {
+            return;
+        }
+
+        $schedule = Schedule::query()->where('id', $id)->first();
+        if (! $schedule || $schedule->status !== ScheduleStatus::Pending) {
+            Notification::make()
+                ->title('Cannot approve')
+                ->body('Schedule not found or not pending.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $schedule->approve();
+
+        $this->matchingPendingSchedules = collect($this->matchingPendingSchedules)
+            ->filter(fn ($s) => (is_object($s) ? $s->id : ($s['id'] ?? null)) !== $id)
+            ->values();
+
+        Notification::make()
+            ->title('Schedule approved')
+            ->body('The pending request has been approved.')
+            ->success()
+            ->send();
+
+        $this->refreshRecords();
+        $this->unmountAction();
     }
 }

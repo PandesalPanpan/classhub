@@ -2,18 +2,12 @@
 
 namespace App\Filament\Pages\Schemas;
 
-use App\ScheduleStatus;
-use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Textarea;
-use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
-use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
@@ -43,7 +37,7 @@ class RequestScheduleForm
                         ->required(),
                     TextInput::make('instructor')
                         ->label('Instructor')
-                        ->placeholder('e.g. Rolito Mahaguay')
+                        ->placeholder('e.g. Rolito Mahaguay'),
                 ])
                 ->columns([
                     'default' => 1,
@@ -59,11 +53,23 @@ class RequestScheduleForm
                         ->native(false)
                         ->displayFormat('F j Y g:iA')
                         ->format('Y-m-d H:i:s')
-                        ->live(onBlur: true)
+                        ->live()
                         ->columnSpan(1)
                         ->afterStateUpdated(function (Get $get, Set $set) {
                             static::updateEndTime($get, $set);
-                        }),
+                        })
+                        ->afterStateUpdatedJs(<<<'JS'
+                            const start = $state;
+                            const duration = parseInt($get('duration_minutes') || 0, 10);
+                            if (!start || !duration) {
+                                $set('end_time', null);
+                                return;
+                            }
+                            const d = new Date(start.replace(' ', 'T'));
+                            d.setMinutes(d.getMinutes() + duration);
+                            const pad = n => String(n).padStart(2, '0');
+                            $set('end_time', d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00');
+                        JS),
 
                     DateTimePicker::make('end_time')
                         ->label('End Time')
@@ -75,20 +81,25 @@ class RequestScheduleForm
 
                     Select::make('duration_minutes')
                         ->label('Duration')
-                        ->options([
-                            30 => '30 minutes',
-                            60 => '1 hour',
-                            90 => '1.5 hours',
-                            120 => '2 hours',
-                            150 => '2.5 hours',
-                            180 => '3 hours',
-                        ])
+                        ->options(static::durationMinutesOptions())
                         ->default(60)
                         ->required()
                         ->live()
                         ->afterStateUpdated(function (Get $get, Set $set) {
                             static::updateEndTime($get, $set);
-                        }),
+                        })
+                        ->afterStateUpdatedJs(<<<'JS'
+                            const start = $get('start_time');
+                            const duration = parseInt($state || 0, 10);
+                            if (!start || !duration) {
+                                $set('end_time', null);
+                                return;
+                            }
+                            const d = new Date(start.replace(' ', 'T'));
+                            d.setMinutes(d.getMinutes() + duration);
+                            const pad = n => String(n).padStart(2, '0');
+                            $set('end_time', d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00');
+                        JS),
                 ])
                 ->columns([
                     'default' => 1,
@@ -97,16 +108,41 @@ class RequestScheduleForm
         ];
     }
 
+    /**
+     * Duration options from 30 minutes up to max (7:30am–9pm = 13.5 hours).
+     * Steps of 30 minutes for consistency with minutesStep on the date picker.
+     *
+     * @return array<int, string>
+     */
+    public static function durationMinutesOptions(): array
+    {
+        $options = [];
+        foreach (range(30, 810, 30) as $minutes) {
+            $options[$minutes] = match (true) {
+                $minutes < 60 => "{$minutes} minutes",
+                $minutes % 60 === 0 => (int) ($minutes / 60).' '.str('hour')->plural((int) ($minutes / 60)),
+                default => (int) ($minutes / 60).'.5 hours',
+            };
+        }
+
+        return $options;
+    }
+
     protected static function updateEndTime(Get $get, Set $set): void
     {
         $start = $get('start_time');
         $duration = $get('duration_minutes');
 
-        if (! $start || ! $duration) {
+        if (! $start || $duration === null || $duration === '') {
             $set('end_time', null);
+
             return;
         }
 
-        $set('end_time', Carbon::parse($start)->addMinutes($duration));
+        $end = Carbon::parse($start)
+            ->addMinutes((int) $duration)
+            ->format('Y-m-d H:i:s');
+
+        $set('end_time', $end);
     }
 }

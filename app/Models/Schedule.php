@@ -3,6 +3,9 @@
 namespace App\Models;
 
 use App\ScheduleStatus;
+use App\ScheduleType;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +13,25 @@ use Illuminate\Support\Facades\Auth;
 
 class Schedule extends Model
 {
+    /**
+     * Scope: pending schedules that match the exact room and time slot.
+     */
+    public function scopePendingForSlot(Builder $query, int $roomId, string|\DateTimeInterface $start, string|\DateTimeInterface $end): Builder
+    {
+        $startStr = $start instanceof \DateTimeInterface
+            ? Carbon::instance($start)->format('Y-m-d H:i:s')
+            : Carbon::parse($start)->format('Y-m-d H:i:s');
+        $endStr = $end instanceof \DateTimeInterface
+            ? Carbon::instance($end)->format('Y-m-d H:i:s')
+            : Carbon::parse($end)->format('Y-m-d H:i:s');
+
+        return $query
+            ->where('status', ScheduleStatus::Pending)
+            ->where('room_id', $roomId)
+            ->where('start_time', $startStr)
+            ->where('end_time', $endStr);
+    }
+
     public function approve(): void
     {
         $this->update([
@@ -67,10 +89,16 @@ class Schedule extends Model
         return $this->belongsTo(User::class, 'approver_id', 'id');
     }
 
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(Schedule::class, 'template_id', 'id');
+    }
+
     protected function casts(): array
     {
         return [
             'status' => ScheduleStatus::class,
+            'type' => ScheduleType::class,
             'start_time' => 'datetime',
             'end_time' => 'datetime',
         ];

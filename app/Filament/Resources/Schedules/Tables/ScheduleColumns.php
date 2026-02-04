@@ -23,15 +23,18 @@ class ScheduleColumns
                 }
 
                 $value = $state instanceof ScheduleStatus ? $state->value : $state;
-
                 return Str::title(strtolower($value)); // e.g. "PENDING" -> "Pending"
             })
-            ->color(function (ScheduleStatus|string|null $state): string {
+            ->color(function (ScheduleStatus|string|null $state, Schedule $record): string {
                 if (! $state) {
                     return 'secondary';
                 }
 
                 $status = $state instanceof ScheduleStatus ? $state : ScheduleStatus::from($state);
+
+                if ($status === ScheduleStatus::Pending && $record->is_priority) {
+                    return 'success';
+                }
 
                 return match ($status) {
                     ScheduleStatus::Pending => 'warning',
