@@ -134,4 +134,24 @@ class Schedule extends Model
             },
         );
     }
+
+    /**
+     * Summary line for global search results: time range and event title.
+     * E.g. "Feb 17, 2026 6:30 PM – 8:30 PM · Methods (BSIT 3-1) – J. Garcia"
+     */
+    protected function searchResultSummary(): Attribute
+    {
+        return Attribute::make(
+            get: function (): string {
+                $timeRange = '';
+                if ($this->start_time && $this->end_time) {
+                    $timeRange = $this->start_time->format('M j, Y g:i A').' – '.$this->end_time->format('g:i A');
+                }
+
+                $event = $this->eventTitle;
+
+                return $timeRange ? $timeRange.' · '.$event : $event;
+            },
+        );
+    }
 }
