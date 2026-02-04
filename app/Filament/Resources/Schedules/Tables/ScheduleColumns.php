@@ -23,6 +23,7 @@ class ScheduleColumns
                 }
 
                 $value = $state instanceof ScheduleStatus ? $state->value : $state;
+
                 return Str::title(strtolower($value)); // e.g. "PENDING" -> "Pending"
             })
             ->color(function (ScheduleStatus|string|null $state, Schedule $record): string {
@@ -50,8 +51,8 @@ class ScheduleColumns
 
     /**
      * Get a configured room number column for schedule tables.
-     * 
-     * @param bool $withFallback If true, shows 'N/A' when room is null
+     *
+     * @param  bool  $withFallback  If true, shows 'N/A' when room is null
      */
     public static function roomNumber(bool $withFallback = false): TextColumn
     {
@@ -60,7 +61,7 @@ class ScheduleColumns
             ->searchable();
 
         if ($withFallback) {
-            $column->getStateUsing(fn($record) => $record->room?->room_number ?? 'N/A');
+            $column->getStateUsing(fn ($record) => $record->room?->room_number ?? 'N/A');
         }
 
         return $column;
@@ -107,11 +108,14 @@ class ScheduleColumns
 
     /**
      * Get a configured instructor initials column for schedule tables.
+     * Searches by full instructor name; displays as initials.
      */
     public static function instructorInitials(): TextColumn
     {
-        return TextColumn::make('instructorInitials')
+        return TextColumn::make('instructor')
             ->label('Instructor')
+            ->tooltip(fn (Schedule $record): string => $record->instructor ?? 'N/A')
+            ->getStateUsing(fn (Schedule $record): string => $record->instructorInitials)
             ->searchable();
     }
 
@@ -136,11 +140,11 @@ class ScheduleColumns
 
                 // If same day, show date once: "Dec 19, 2025 7:30AM-9:30AM"
                 if ($start->isSameDay($end)) {
-                    return $start->format('M j, Y') . ' ' . $start->format('g:iA') . '-' . $end->format('g:iA');
+                    return $start->format('M j, Y').' '.$start->format('g:iA').'-'.$end->format('g:iA');
                 }
 
                 // If different days, show both dates
-                return $start->format('M j, Y g:iA') . ' - ' . $end->format('M j, Y g:iA');
+                return $start->format('M j, Y g:iA').' - '.$end->format('M j, Y g:iA');
             });
     }
 
@@ -153,7 +157,7 @@ class ScheduleColumns
             ->dateTime()
             ->sortable()
             ->toggleable(isToggledHiddenByDefault: true)
-            ->formatStateUsing(fn($state) => Carbon::parse($state)->format('M j, Y g:iA'));
+            ->formatStateUsing(fn ($state) => Carbon::parse($state)->format('M j, Y g:iA'));
     }
 
     /**
@@ -165,7 +169,6 @@ class ScheduleColumns
             ->dateTime()
             ->sortable()
             ->toggleable(isToggledHiddenByDefault: true)
-            ->formatStateUsing(fn($state) => Carbon::parse($state)->format('M j, Y g:iA'));
+            ->formatStateUsing(fn ($state) => Carbon::parse($state)->format('M j, Y g:iA'));
     }
 }
-
