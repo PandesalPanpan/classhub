@@ -5,7 +5,7 @@ namespace App\Filament\Resources\Schedules\Tables;
 use App\ScheduleStatus;
 use App\Models\Schedule;
 use Carbon\Carbon;
-use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\Indicator;
 use Filament\Tables\Filters\SelectFilter;
@@ -62,35 +62,38 @@ class ScheduleTableFilters
     public static function dateRangeFilter(): Filter
     {
         return Filter::make('schedule_date_range')
-            ->label('Schedule date range')
+            ->label('Schedule date & time range')
             ->schema([
-                DatePicker::make('from')
-                    ->label('From'),
-                DatePicker::make('to')
-                    ->label('To'),
+                DateTimePicker::make('from')
+                    ->label('From')
+                    ->seconds(false),
+                DateTimePicker::make('to')
+                    ->label('To')
+                    ->seconds(false),
             ])
             ->query(function (Builder $query, array $data): void {
                 $from = $data['from'] ?? null;
                 $to = $data['to'] ?? null;
 
                 if (filled($from)) {
-                    $query->where('end_time', '>=', Carbon::parse($from)->startOfDay()->format('Y-m-d H:i:s'));
+                    $query->where('end_time', '>=', Carbon::parse($from)->format('Y-m-d H:i:s'));
                 }
 
                 if (filled($to)) {
-                    $query->where('start_time', '<=', Carbon::parse($to)->endOfDay()->format('Y-m-d H:i:s'));
+                    $query->where('start_time', '<=', Carbon::parse($to)->format('Y-m-d H:i:s'));
                 }
             })
             ->indicateUsing(function (array $data): array {
                 $indicators = [];
+                $format = 'M j, Y g:i A';
 
                 if (filled($data['from'] ?? null)) {
-                    $indicators[] = Indicator::make('From '.Carbon::parse($data['from'])->toFormattedDateString())
+                    $indicators[] = Indicator::make('From '.Carbon::parse($data['from'])->format($format))
                         ->removeField('from');
                 }
 
                 if (filled($data['to'] ?? null)) {
-                    $indicators[] = Indicator::make('To '.Carbon::parse($data['to'])->toFormattedDateString())
+                    $indicators[] = Indicator::make('To '.Carbon::parse($data['to'])->format($format))
                         ->removeField('to');
                 }
 
