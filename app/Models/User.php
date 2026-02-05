@@ -2,10 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -75,10 +76,15 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return false;
     }
 
+    public function requestedSchedules(): HasMany
+    {
+        return $this->hasMany(Schedule::class, 'requester_id');
+    }
+
     protected static function booted(): void
     {
         static::created(function (User $user) {
-            if ($user->roles->isNotEmpty()){
+            if ($user->roles->isNotEmpty()) {
                 return;
             }
             $user->assignRole('Class Representative');
