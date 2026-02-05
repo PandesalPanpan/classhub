@@ -36,6 +36,15 @@ class RequestSchedule extends Page implements HasTable
     {
         return $table
             ->defaultSort('start_time', 'desc')
+            ->searchUsing(function (Builder $query, string $search): void {
+                [$parsedDate, $textSearch, $dateCandidate] = Schedule::extractDateAndTextFromSearch($search);
+                Schedule::applyTableSearchConstraint($query, $textSearch);
+                if ($parsedDate !== null) {
+                    $query->where(function (Builder $q) use ($parsedDate, $dateCandidate): void {
+                        Schedule::applyScheduleOverlapConstraint($q, $parsedDate, $dateCandidate);
+                    });
+                }
+            })
             ->columns([
                 ScheduleColumns::roomNumber(withFallback: true),
                 ScheduleColumns::requesterName()
