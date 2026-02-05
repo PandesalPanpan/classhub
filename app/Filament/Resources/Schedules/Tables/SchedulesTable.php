@@ -38,10 +38,7 @@ class SchedulesTable
                 ScheduleColumns::updatedAt(),
             ])
             ->filters([
-                SelectFilter::make('status')
-                    ->label('Status')
-                    ->options(ScheduleStatus::class)
-                    ->default(ScheduleStatus::Pending),
+                ...ScheduleTableFilters::filters(includeRequester: true, defaultPendingStatus: true),
             ])
             ->recordActions([
                 // ViewAction::make(),

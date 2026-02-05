@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Filament\Pages\Schemas\RequestScheduleForm;
 use App\Filament\Resources\Schedules\Tables\ScheduleColumns;
+use App\Filament\Resources\Schedules\Tables\ScheduleTableFilters;
 use App\Models\Schedule;
 use App\ScheduleStatus;
 use App\Services\ScheduleOverlapChecker;
@@ -13,7 +14,6 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
@@ -59,9 +59,7 @@ class RequestSchedule extends Page implements HasTable
                 ScheduleColumns::updatedAt(),
             ])
             ->filters([
-                SelectFilter::make('status')
-                    ->options(ScheduleStatus::class)
-                    ->multiple(),
+                ...ScheduleTableFilters::filters(includeRequester: false, defaultPendingStatus: false),
             ])
             ->recordActions([
                 Action::make('cancel')
