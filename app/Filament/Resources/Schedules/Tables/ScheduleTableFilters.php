@@ -43,7 +43,7 @@ class ScheduleTableFilters
         ->options(ScheduleStatus::class)
         ->multiple()
         ->label('Status')
-        ->default($defaultPendingStatus ? null : ScheduleStatus::Pending->value);
+        ->default($defaultPendingStatus ? [ScheduleStatus::Pending] : null);
     }
 
     public static function roomFilter(): SelectFilter
