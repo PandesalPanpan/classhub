@@ -2,12 +2,9 @@
 
 namespace App\Filament\Resources\Schedules\Actions;
 
-use App\Jobs\VerifyScheduleKeyUsageJob;
-use App\KeyStatus;
-use App\Models\Room;
-use Filament\Actions\Action;
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -88,7 +85,7 @@ class SchedulesActions
                         ->label('Remarks')
                         ->columnSpanFull(),
                 ])
-                ->fillForm(fn(Schedule $record): array => [
+                ->fillForm(fn (Schedule $record): array => [
                     'room_id' => $record->room_id,
                     'subject' => $record->subject,
                     'program_year_section' => $record->program_year_section,
@@ -98,7 +95,7 @@ class SchedulesActions
                     'end_time' => $record->end_time,
                     'remarks' => $record->remarks,
                 ])
-                ->visible(fn(Schedule $record) => $record->status === ScheduleStatus::Pending)
+                ->visible(fn (Schedule $record) => $record->status === ScheduleStatus::Pending)
                 ->action(function (Schedule $record, array $data, $livewire) {
                     $record->update([
                         'room_id' => $data['room_id'],
@@ -107,21 +104,13 @@ class SchedulesActions
                         'remarks' => $data['remarks'],
                     ]);
 
-                    // Refresh to get updated relationships
                     $record->refresh();
-
-                    // Dispatch job only if the room key is not disabled
-                    $room = Room::with('key')->find($data['room_id']);
-                    if ($room?->key?->status !== KeyStatus::Disabled) {
-                        VerifyScheduleKeyUsageJob::dispatch($record)
-                            ->delay($record->getFortyPercentDurationPoint());
-                    }
 
                     if ($livewire) {
                         $livewire->dispatch('filament-fullcalendar--refresh');
                     }
                 })
-                ->visible(fn(Schedule $record) => $record->status === ScheduleStatus::Pending),
+                ->visible(fn (Schedule $record) => $record->status === ScheduleStatus::Pending),
             Action::make('reject')
                 ->label('Reject')
                 ->icon('heroicon-o-x-circle')
@@ -190,7 +179,7 @@ class SchedulesActions
                         ->helperText('Please provide a reason for rejecting this schedule request.')
                         ->columnSpanFull(),
                 ])
-                ->fillForm(fn(Schedule $record): array => [
+                ->fillForm(fn (Schedule $record): array => [
                     'room_id' => $record->room_id,
                     'subject' => $record->subject,
                     'program_year_section' => $record->program_year_section,
@@ -200,7 +189,7 @@ class SchedulesActions
                     'end_time' => $record->end_time,
                     'remarks' => $record->remarks,
                 ])
-                ->visible(fn(Schedule $record) => $record->status === ScheduleStatus::Pending)
+                ->visible(fn (Schedule $record) => $record->status === ScheduleStatus::Pending)
                 ->action(function (Schedule $record, array $data, $livewire) {
                     $updateData = [
                         'status' => ScheduleStatus::Rejected,
