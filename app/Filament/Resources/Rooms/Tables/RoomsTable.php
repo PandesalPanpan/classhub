@@ -23,7 +23,7 @@ class RoomsTable
                 IconColumn::make('is_active')
                     ->boolean(),
                 TextColumn::make('room_type')
-                    ->formatStateUsing(fn($state) => Str::title(strtolower($state->value)))
+                    ->formatStateUsing(fn ($state) => Str::title(strtolower($state->value)))
                     ->searchable(),
                 TextColumn::make('capacity')
                     ->searchable(),
@@ -34,7 +34,7 @@ class RoomsTable
                 TextColumn::make('key.status')
                     ->label('Key')
                     // Keep state as status (enum/string) for color matching
-                    ->getStateUsing(fn($record) => $record->key?->status)
+                    ->getStateUsing(fn ($record) => $record->key?->status)
                     ->formatStateUsing(function ($state, $record) {
                         if (! $record->key) {
                             return 'No key assigned';
@@ -56,6 +56,8 @@ class RoomsTable
                             KeyStatus::Used => 'danger',
                             KeyStatus::Stored => 'warning',
                             KeyStatus::Disabled => 'secondary',
+                            KeyStatus::HandedOver => 'info',
+                            KeyStatus::Missing => 'danger',
                         };
                     })
                     ->searchable(),
