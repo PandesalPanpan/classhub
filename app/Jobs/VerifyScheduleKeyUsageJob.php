@@ -20,8 +20,7 @@ class VerifyScheduleKeyUsageJob implements ShouldQueue
      */
     public function __construct(
         public Schedule $schedule
-    ) {
-    }
+    ) {}
 
     /**
      * Execute the job.
@@ -45,10 +44,17 @@ class VerifyScheduleKeyUsageJob implements ShouldQueue
 
         $keyStatus = $this->schedule->room->key->status;
 
-        // If key is "Stored", expire the schedule
-        // If key is "Used" or "Disabled", ignore it
         if ($keyStatus === KeyStatus::Stored) {
             $this->schedule->expire();
+
+            return;
+        }
+
+        if ($keyStatus === KeyStatus::Used) {
+            $runAt = $this->schedule->getPostClassCheckRunAt(10);
+            if ($runAt->isFuture()) {
+                PostClassCheckJob::dispatch($this->schedule)->delay($runAt);
+            }
         }
     }
 }

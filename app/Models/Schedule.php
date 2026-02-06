@@ -74,6 +74,14 @@ class Schedule extends Model
         return $this->start_time->copy()->addSeconds($delayInSeconds);
     }
 
+    /**
+     * When to run the post-class check (key return / handover). Default: end_time + 10 minutes.
+     */
+    public function getPostClassCheckRunAt(int $minutesAfterEnd = 10): \Illuminate\Support\Carbon
+    {
+        return $this->end_time->copy()->addMinutes($minutesAfterEnd);
+    }
+
     public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class, 'room_id', 'id');
