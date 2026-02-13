@@ -18,7 +18,7 @@ class ScheduleForm
     /**
      * @param  array<int, \App\Models\Schedule>|Collection<int, \App\Models\Schedule>  $matchingPendingSchedules
      */
-    public static function configure(Schema $schema, array|Collection $matchingPendingSchedules = []): Schema
+    public static function configure(Schema $schema, array|Collection $matchingPendingSchedules = [], ?int $selectedSlotRoomId = null): Schema
     {
         $matchingPendingSchedules = collect($matchingPendingSchedules);
 
@@ -26,11 +26,14 @@ class ScheduleForm
 
         if ($matchingPendingSchedules->isNotEmpty()) {
             $components[] = Section::make('Matching Pending Requests')
-                ->description('Pending schedule requests that match this time slot. Approve one to fill the slot without creating a new schedule.')
+                ->description('Pending schedule requests that match this time slot. Approve one to fill the slot without creating a new schedule. Includes requests for this time in other rooms; approving one from another room will assign it to the selected room.')
                 ->schema([
                     ViewField::make('matching_pendings')
                         ->view('filament.components.matching-pending-schedules')
-                        ->viewData(['schedules' => $matchingPendingSchedules])
+                        ->viewData([
+                            'schedules' => $matchingPendingSchedules,
+                            'selectedSlotRoomId' => $selectedSlotRoomId,
+                        ])
                         ->dehydrated(false),
                 ]);
         }
