@@ -32,6 +32,24 @@ class Schedule extends Model
             ->where('end_time', $endStr);
     }
 
+    /**
+     * Scope: pending schedules that match the exact time slot in any room.
+     */
+    public function scopePendingForTimeSlot(Builder $query, string|\DateTimeInterface $start, string|\DateTimeInterface $end): Builder
+    {
+        $startStr = $start instanceof \DateTimeInterface
+            ? Carbon::instance($start)->format('Y-m-d H:i:s')
+            : Carbon::parse($start)->format('Y-m-d H:i:s');
+        $endStr = $end instanceof \DateTimeInterface
+            ? Carbon::instance($end)->format('Y-m-d H:i:s')
+            : Carbon::parse($end)->format('Y-m-d H:i:s');
+
+        return $query
+            ->where('status', ScheduleStatus::Pending)
+            ->where('start_time', $startStr)
+            ->where('end_time', $endStr);
+    }
+
     public function approve(): void
     {
         $this->update([

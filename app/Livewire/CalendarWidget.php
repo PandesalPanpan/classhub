@@ -132,16 +132,22 @@ class CalendarWidget extends FullCalendarWidget
 
                         $form->fill($fillData);
 
-                        // Find pending schedules matching this slot so admin can approve them from the modal
-                        if (isset($fillData['room_id'], $fillData['start_time'], $fillData['end_time'])) {
-                            $this->matchingPendingSchedules = Schedule::query()
-                                ->pendingForSlot(
-                                    $fillData['room_id'],
-                                    $fillData['start_time'],
-                                    $fillData['end_time']
-                                )
-                                ->with(['requester', 'room'])
-                                ->get();
+                        // Find pending schedules matching this time (any room) so admin can approve them from the modal.
+                        // Do not show any if the selected room already has an approved schedule at this slot.
+                        if (isset($fillData['start_time'], $fillData['end_time'])) {
+                            $roomId = $fillData['room_id'] ?? null;
+                            $hasApprovedInSlot = $roomId !== null && ScheduleOverlapChecker::hasOverlap(
+                                (int) $roomId,
+                                Carbon::parse($fillData['start_time']),
+                                Carbon::parse($fillData['end_time']),
+                                [ScheduleStatus::Approved]
+                            );
+                            $this->matchingPendingSchedules = $hasApprovedInSlot
+                                ? collect()
+                                : Schedule::query()
+                                    ->pendingForTimeSlot($fillData['start_time'], $fillData['end_time'])
+                                    ->with(['requester', 'room'])
+                                    ->get();
                         }
                     }
                 })
@@ -218,24 +224,48 @@ class CalendarWidget extends FullCalendarWidget
 
         // Schema is built before mountUsing runs, so compute matching pendings from current action args when available
         $matchingPendings = $this->getMatchingPendingSchedulesForSchema();
-        $schema = ScheduleForm::configure(Schema::make(), $matchingPendings);
+        $selectedSlotRoomId = $this->getSelectedSlotRoomIdForSchema();
+        $schema = ScheduleForm::configure(Schema::make(), $matchingPendings, $selectedSlotRoomId);
 
         return $schema->getComponents();
     }
 
     /**
-     * Matching pendings for the create modal. Schema is built before mountUsing, so we derive from
-     * the current mounted action arguments when it's create with type=select; otherwise use property.
+     * Matching pendings for the create/view modal. For create+select we derive from action args;
+     * for view we use the viewed record's time and room. Otherwise use property.
      *
      * @return Collection<int, Schedule>|array<int, Schedule>
      */
     protected function getMatchingPendingSchedulesForSchema(): Collection|array
     {
         $lastAction = $this->mountedActions[array_key_last($this->mountedActions ?? []) ?? 0] ?? null;
-        if (
-            ($lastAction['name'] ?? null) !== 'create'
-            || ($lastAction['arguments']['type'] ?? null) !== 'select'
-        ) {
+        $actionName = $lastAction['name'] ?? null;
+
+        if ($actionName === 'view' && isset($this->record) && $this->record instanceof Schedule) {
+            $record = $this->record;
+            $startTime = $record->start_time instanceof \Carbon\Carbon
+                ? $record->start_time->format('Y-m-d H:i:s')
+                : $record->start_time;
+            $endTime = $record->end_time instanceof \Carbon\Carbon
+                ? $record->end_time->format('Y-m-d H:i:s')
+                : $record->end_time;
+            $roomId = $record->room_id;
+            if ($roomId !== null && ScheduleOverlapChecker::hasOverlap(
+                (int) $roomId,
+                Carbon::parse($startTime),
+                Carbon::parse($endTime),
+                [ScheduleStatus::Approved]
+            )) {
+                return [];
+            }
+
+            return Schedule::query()
+                ->pendingForTimeSlot($startTime, $endTime)
+                ->with(['requester', 'room'])
+                ->get();
+        }
+
+        if ($actionName !== 'create' || ($lastAction['arguments']['type'] ?? null) !== 'select') {
             return $this->matchingPendingSchedules ?? [];
         }
 
@@ -246,29 +276,54 @@ class CalendarWidget extends FullCalendarWidget
             return $this->matchingPendingSchedules ?? [];
         }
 
-        $roomId = null;
-        if (isset($arguments['resource']['id']) && str_starts_with((string) $arguments['resource']['id'], 'room-')) {
-            $roomNumber = str_replace('room-', '', (string) $arguments['resource']['id']);
-            $room = Room::where('room_number', $roomNumber)->first();
-            if ($room) {
-                $roomId = $room->id;
-            }
-        }
-        if (! $roomId && $this->filterRoom) {
-            $roomNumber = str_replace('room-', '', $this->filterRoom);
-            $room = Room::where('room_number', $roomNumber)->first();
-            if ($room) {
-                $roomId = $room->id;
-            }
-        }
-        if (! $roomId) {
-            return $this->matchingPendingSchedules ?? [];
+        $selectedRoomId = $this->getSelectedSlotRoomIdForSchema();
+        if ($selectedRoomId !== null && ScheduleOverlapChecker::hasOverlap(
+            $selectedRoomId,
+            Carbon::parse($startTime),
+            Carbon::parse($endTime),
+            [ScheduleStatus::Approved]
+        )) {
+            return [];
         }
 
         return Schedule::query()
-            ->pendingForSlot($roomId, $startTime, $endTime)
+            ->pendingForTimeSlot($startTime, $endTime)
             ->with(['requester', 'room'])
             ->get();
+    }
+
+    /**
+     * Selected slot's room id for the create/view modal (button color and assign-on-approve).
+     * Set from create+select action args, or from the viewed record when action is view.
+     */
+    protected function getSelectedSlotRoomIdForSchema(): ?int
+    {
+        $lastAction = $this->mountedActions[array_key_last($this->mountedActions ?? []) ?? 0] ?? null;
+        $actionName = $lastAction['name'] ?? null;
+
+        if ($actionName === 'view' && isset($this->record) && $this->record instanceof Schedule) {
+            return $this->record->room_id;
+        }
+
+        if ($actionName !== 'create' || ($lastAction['arguments']['type'] ?? null) !== 'select') {
+            return null;
+        }
+
+        $arguments = $lastAction['arguments'] ?? [];
+        if (isset($arguments['resource']['id']) && str_starts_with((string) $arguments['resource']['id'], 'room-')) {
+            $roomNumber = str_replace('room-', '', (string) $arguments['resource']['id']);
+            $room = Room::where('room_number', $roomNumber)->first();
+
+            return $room?->id;
+        }
+        if ($this->filterRoom) {
+            $roomNumber = str_replace('room-', '', $this->filterRoom);
+            $room = Room::where('room_number', $roomNumber)->first();
+
+            return $room?->id;
+        }
+
+        return null;
     }
 
     public function config(): array
@@ -664,6 +719,52 @@ class CalendarWidget extends FullCalendarWidget
             Notification::make()
                 ->title('Cannot approve')
                 ->body('Schedule not found or not pending.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $targetRoomId = $this->getSelectedSlotRoomIdForSchema();
+        if ($targetRoomId !== null && $schedule->room_id !== $targetRoomId) {
+            $startCarbon = Carbon::parse($schedule->start_time);
+            $endCarbon = Carbon::parse($schedule->end_time);
+            // When moving a pending to the selected room, only Approved schedules block; other Pendings in that slot are competing requests we are resolving by approving this one.
+            if (
+                ScheduleOverlapChecker::hasOverlap(
+                    $targetRoomId,
+                    $startCarbon,
+                    $endCarbon,
+                    [ScheduleStatus::Approved],
+                    excludeId: $schedule->id
+                )
+            ) {
+                Notification::make()
+                    ->title('Schedule conflict')
+                    ->body('This room already has a schedule during the selected time.')
+                    ->danger()
+                    ->send();
+
+                return;
+            }
+            $schedule->update(['room_id' => $targetRoomId]);
+        }
+
+        $finalRoomId = $schedule->room_id;
+        $startCarbon = Carbon::parse($schedule->start_time);
+        $endCarbon = Carbon::parse($schedule->end_time);
+        if (
+            ScheduleOverlapChecker::hasOverlap(
+                $finalRoomId,
+                $startCarbon,
+                $endCarbon,
+                [ScheduleStatus::Approved],
+                excludeId: $schedule->id
+            )
+        ) {
+            Notification::make()
+                ->title('Schedule conflict')
+                ->body('This room already has an approved schedule during this time.')
                 ->danger()
                 ->send();
 

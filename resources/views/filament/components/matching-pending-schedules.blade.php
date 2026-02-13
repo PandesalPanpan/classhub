@@ -1,4 +1,4 @@
-@props(['schedules' => collect()])
+@props(['schedules' => collect(), 'selectedSlotRoomId' => null])
 
 <div class="grid gap-y-4">
     @foreach($schedules as $schedule)
@@ -6,6 +6,9 @@
             $id = data_get($schedule, 'id');
             $subject = data_get($schedule, 'subject');
             $requesterName = data_get($schedule, 'requester.name') ?? 'Requester #' . data_get($schedule, 'requester_id');
+            $roomLabel = data_get($schedule, 'room.room_full_label') ?? data_get($schedule, 'room.room_number') ?? 'Room #' . data_get($schedule, 'room_id');
+            $scheduleRoomId = data_get($schedule, 'room_id');
+            $isOtherRoom = $selectedSlotRoomId !== null && $scheduleRoomId !== null && (int) $scheduleRoomId !== (int) $selectedSlotRoomId;
             $timeRange = null;
             if ($start = data_get($schedule, 'start_time')) {
                 $startCarbon = is_object($start) ? $start : \Carbon\Carbon::parse($start);
@@ -22,13 +25,14 @@
                     </p>
                     <p class="fi-section-header-description">
                         {{ $requesterName }}
+                        · {{ $roomLabel }}
                         @if($timeRange)
                             · {{ $timeRange }}
                         @endif
                     </p>
                 </div>
                 <x-filament::button
-                    color="success"
+                    :color="$isOtherRoom ? 'warning' : 'success'"
                     size="sm"
                     tag="button"
                     type="button"
