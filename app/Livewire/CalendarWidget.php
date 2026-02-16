@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Filament\Pages\Schemas\FindAvailableRoomsForm;
 use App\Filament\Pages\Schemas\OverrideTemplateForm;
 use App\Filament\Pages\Schemas\RequestScheduleForm;
 use App\Filament\Resources\Schedules\Schemas\ScheduleForm;
@@ -13,6 +14,7 @@ use App\Services\ScheduleOverlapChecker;
 use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Support\Exceptions\Halt;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
@@ -38,6 +40,13 @@ class CalendarWidget extends FullCalendarWidget
     /** @var Collection<int, Schedule>|array<int, Schedule> */
     public Collection|array $matchingPendingSchedules = [];
 
+    /**
+     * Results for the Find Available Rooms modal. Each item: room, available, conflicting_schedule.
+     *
+     * @var array<int, array{room: \App\Models\Room, available: bool, conflicting_schedule: \App\Models\Schedule|null}>
+     */
+    public array $findAvailableRoomsResults = [];
+
     protected ?Collection $roomsCache = null;
 
     protected ?string $roomsCacheFilter = null;
@@ -48,39 +57,6 @@ class CalendarWidget extends FullCalendarWidget
         $label = $roomNumber ? "Room: {$roomNumber}" : 'Filter by Room';
 
         return [
-            Action::make('refresh')
-                ->label('Refresh')
-                ->icon('heroicon-o-arrow-path')
-                ->color('gray')
-                ->action(function () {
-                    $this->dispatch('filament-fullcalendar--refresh');
-                }),
-            ActionGroup::make([
-                Action::make('filterRoomAll')
-                    ->label('All Rooms')
-                    ->icon($roomNumber ? null : 'heroicon-o-check')
-                    ->action(function () {
-                        $this->filterRoom = null;
-                        $this->dispatch('filament-fullcalendar--refresh');
-                    }),
-                ...Room::query()
-                    ->orderBy('room_number')
-                    ->pluck('room_number')
-                    ->map(fn (string $roomNum): Action => Action::make("filterRoom_{$roomNum}")
-                        ->label($roomNum)
-                        ->icon($roomNumber === $roomNum ? 'heroicon-o-check' : null)
-                        ->action(function () use ($roomNum) {
-                            $this->filterRoom = "room-{$roomNum}";
-                            $this->dispatch('filament-fullcalendar--refresh');
-                        }))
-                    ->values()
-                    ->all(),
-            ])
-                ->label($label)
-                ->icon('heroicon-o-funnel')
-                ->color($roomNumber ? 'primary' : 'gray')
-                ->badge($roomNumber ? null : 'All')
-                ->button(),
             CreateAction::make()
                 ->authorize(fn () => Auth::check() && Auth::user()->can('Create:Schedule'))
                 ->mountUsing(function ($form, array $arguments) {
@@ -195,7 +171,117 @@ class CalendarWidget extends FullCalendarWidget
 
                     return $data;
                 }),
-            Action::make('showValidPendingSchedules')
+            Action::make('refresh')
+                ->label('Refresh')
+                ->icon('heroicon-o-arrow-path')
+                ->color('gray')
+                ->action(function () {
+                    $this->dispatch('filament-fullcalendar--refresh');
+                }),
+            ActionGroup::make([
+                Action::make('filterRoomAll')
+                    ->label('All Rooms')
+                    ->icon($roomNumber ? null : 'heroicon-o-check')
+                    ->action(function () {
+                        $this->filterRoom = null;
+                        $this->dispatch('filament-fullcalendar--refresh');
+                    }),
+                ...Room::query()
+                    ->orderBy('room_number')
+                    ->pluck('room_number')
+                    ->map(fn (string $roomNum): Action => Action::make("filterRoom_{$roomNum}")
+                        ->label($roomNum)
+                        ->icon($roomNumber === $roomNum ? 'heroicon-o-check' : null)
+                        ->action(function () use ($roomNum) {
+                            $this->filterRoom = "room-{$roomNum}";
+                            $this->dispatch('filament-fullcalendar--refresh');
+                        }))
+                    ->values()
+                    ->all(),
+            ])
+                ->label($label)
+                ->icon('heroicon-o-funnel')
+                ->color($roomNumber ? 'primary' : 'gray')
+                ->badge($roomNumber ? null : 'All')
+                ->button(),
+            Action::make('findAvailableRooms')
+                ->label('Find rooms')
+                ->icon('heroicon-o-magnifying-glass')
+                ->color('gray')
+                ->visible(fn () => $this->isAdminPanel())
+                ->authorize(fn () => Auth::check() && Auth::user()->can('View:Schedule'))
+                ->modalHeading('Find available rooms')
+                ->modalSubmitActionLabel('Find rooms')
+                ->modalWidth('xl')
+                ->form(fn () => FindAvailableRoomsForm::schema($this))
+                ->mountUsing(function (): void {
+                    $this->findAvailableRoomsResults = [];
+                    $idx = array_key_last($this->mountedActions);
+                    if ($idx !== null) {
+                        $actions = $this->mountedActions ?? [];
+                        $actions[$idx]['data'] = [
+                            'date' => null,
+                            'start_time' => null,
+                            'duration_minutes' => 60,
+                        ];
+                        $this->mountedActions = $actions;
+                    }
+                })
+                ->action(function (array $data): void {
+                    $date = $data['date'] ?? null;
+                    $startTime = $data['start_time'] ?? null;
+                    $durationMinutes = isset($data['duration_minutes']) ? (int) $data['duration_minutes'] : null;
+
+                    if (! $date || ! $startTime || $durationMinutes === null) {
+                        return;
+                    }
+
+                    $start = Carbon::parse($date.' '.$startTime);
+                    $end = $start->copy()->addMinutes($durationMinutes);
+
+                    $conflictingByRoom = Schedule::query()
+                        ->whereIn('status', [ScheduleStatus::Approved, ScheduleStatus::Pending])
+                        ->where('start_time', '<', $end->format('Y-m-d H:i:s'))
+                        ->where('end_time', '>', $start->format('Y-m-d H:i:s'))
+                        ->get(['id', 'room_id', 'subject', 'program_year_section', 'instructor', 'start_time', 'end_time'])
+                        ->keyBy('room_id');
+
+                    $rooms = Room::query()
+                        ->where('is_active', true)
+                        ->orderBy('room_number')
+                        ->get();
+
+                    $results = [];
+                    foreach ($rooms as $room) {
+                        $conflicting = $conflictingByRoom->get($room->id);
+                        $results[] = [
+                            'room' => $room,
+                            'available' => $conflicting === null,
+                            'conflicting_schedule' => $conflicting,
+                        ];
+                    }
+
+                    usort($results, function (array $a, array $b): int {
+                        if ($a['available'] !== $b['available']) {
+                            return $a['available'] ? -1 : 1;
+                        }
+
+                        return strcmp(
+                            $a['room']->room_number ?? '',
+                            $b['room']->room_number ?? ''
+                        );
+                    });
+
+                    $this->findAvailableRoomsResults = $results;
+
+                    $idx = array_key_last($this->mountedActions);
+                    if ($idx !== null && isset($this->cachedSchemas['mountedActionSchema' . $idx])) {
+                        unset($this->cachedSchemas['mountedActionSchema' . $idx]);
+                    }
+
+                    throw new Halt;
+                }),
+                Action::make('showValidPendingSchedules')
                 ->label(fn () => $this->showValidPendingSchedules ? 'Hide valid pending' : 'Show valid pending')
                 ->icon(fn () => $this->showValidPendingSchedules ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
                 ->color($this->showValidPendingSchedules ? 'primary' : 'gray')
