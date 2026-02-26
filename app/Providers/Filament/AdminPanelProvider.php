@@ -90,7 +90,7 @@ class AdminPanelProvider extends PanelProvider
                         ]),
                     FilamentShieldPlugin::make(),
                 ],
-
-            );
+            )
+            ->databaseNotifications();
     }
 }
