@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\KeyStatus;
 use App\Models\Key;
+use App\Models\User;
+use Filament\Notifications\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -67,7 +69,10 @@ class KeyController extends Controller
             'status.in' => 'The API only accepts STORED or USED from the hardware. MISSING and HANDED_OVER are set by the application.',
         ]);
 
-        $key = Key::where('slot_number', $slotNumber)->first();
+        $key = Key::query()
+            ->with('room:id,room_number')
+            ->where('slot_number', $slotNumber)
+            ->first();
 
         if (! $key) {
             return response()->json(['message' => 'Key not found'], 404);
@@ -79,11 +84,14 @@ class KeyController extends Controller
             ], 403);
         }
 
+        $oldStatus = $key->status;
         $requestedStatus = KeyStatus::from($validated['status']);
 
         if ($requestedStatus === KeyStatus::Stored) {
             $key->status = KeyStatus::Stored;
             $key->save();
+
+            $this->notifyAdminKeyStatusUpdated($key, $oldStatus, KeyStatus::Stored);
 
             return response()->json([
                 'message' => 'Key status updated',
@@ -114,6 +122,8 @@ class KeyController extends Controller
             $key->status = KeyStatus::Used;
             $key->save();
 
+            $this->notifyAdminKeyStatusUpdated($key, $oldStatus, KeyStatus::Used);
+
             return response()->json([
                 'message' => 'Key status updated',
                 'data' => [
@@ -126,5 +136,19 @@ class KeyController extends Controller
         }
 
         throw new \InvalidArgumentException('Invalid status requested.');
+    }
+
+    private function notifyAdminKeyStatusUpdated(Key $key, KeyStatus $oldStatus, KeyStatus $newStatus): void
+    {
+        $roomNumber = $key->room?->room_number ?? 'N/A';
+        $adminUsers = User::role(['Admin', 'Superadmin'])->get();
+
+        $notification = Notification::make()
+            ->title('Key status updated')
+            ->body("Slot {$key->slot_number}, Room {$roomNumber}: {$oldStatus->value} → {$newStatus->value}")
+            ->success();
+
+        $notification->sendToDatabase($adminUsers);
+        $notification->broadcast($adminUsers);
     }
 }

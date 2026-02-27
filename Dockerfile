@@ -15,7 +15,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_25.x | bash - \
     && apt-get install -y nodejs \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN docker-php-ext-install pdo_mysql zip
+RUN docker-php-ext-install pdo_mysql zip pcntl
 RUN docker-php-ext-configure intl && docker-php-ext-install intl
 
 # Copy application code
