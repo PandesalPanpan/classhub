@@ -35,7 +35,6 @@ class AppServiceProvider extends ServiceProvider
         Schedule::observe(ScheduleObserver::class);
         Gate::policy(Schedule::class, SchedulePolicy::class);
         Gate::policy(Room::class, RoomPolicy::class);
-
         // Model::preventLazyLoading();
     }
 }
