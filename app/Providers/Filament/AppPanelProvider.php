@@ -25,7 +25,7 @@ class AppPanelProvider extends PanelProvider
     {
         return $panel
             ->id('app')
-            ->path('app')
+            ->path(path: 'portal')
             ->registration(Register::class)
             ->login()
             ->emailVerification(isRequired: true)
@@ -74,6 +74,6 @@ class AppPanelProvider extends PanelProvider
                     ->config([
                         'initialView' => 'timeGridWeek',
                     ])
-                );
+            );
     }
 }

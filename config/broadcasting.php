@@ -79,4 +79,22 @@ return [
 
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Client Configuration (Runtime)
+    |--------------------------------------------------------------------------
+    |
+    | Configuration exposed to the frontend for Echo/Pusher. Used for runtime
+    | config injection when VITE_* build-time vars are not available (e.g.
+    | Docker images built without REVERB keys).
+    |
+    */
+
+    'client' => [
+        'key' => env('REVERB_APP_KEY'),
+        'host' => env('VITE_REVERB_HOST') ?? env('PUBLIC_REVERB_HOST') ?? (parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST) ?: 'localhost'),
+        'port' => (int) (env('VITE_REVERB_PORT') ?? env('PUBLIC_REVERB_PORT') ?? 443),
+        'scheme' => env('VITE_REVERB_SCHEME') ?? env('PUBLIC_REVERB_SCHEME') ?? 'https',
+    ],
+
 ];
