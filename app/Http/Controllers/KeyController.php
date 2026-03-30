@@ -141,7 +141,7 @@ class KeyController extends Controller
     private function notifyAdminKeyStatusUpdated(Key $key, KeyStatus $oldStatus, KeyStatus $newStatus): void
     {
         $roomNumber = $key->room?->room_number ?? 'N/A';
-        $adminUsers = User::role(['Admin', 'Superadmin'])->get();
+        $adminUsers = User::permission('ReceiveKeyNotifications')->get();
 
         $notification = Notification::make()
             ->title('Key status updated')

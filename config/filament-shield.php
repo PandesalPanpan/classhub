@@ -23,7 +23,7 @@ return [
             'pages' => true,
             'widgets' => true,
             'resources' => true,
-            'custom_permissions' => false,
+            'custom_permissions' => true,
         ],
     ],
 
@@ -245,6 +245,7 @@ return [
          * Custom schedule workflow permissions.
          * These are intended to be granted primarily to the "Admin" and "Superadmin" roles.
          */
+        'receive-key-notifications',
     ],
 
     /*
