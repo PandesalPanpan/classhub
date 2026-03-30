@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\KeyStatus;
 use App\Models\Key;
 use App\Models\User;
+use App\Services\KeyNotificationService;
 use Filament\Notifications\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -140,15 +141,6 @@ class KeyController extends Controller
 
     private function notifyAdminKeyStatusUpdated(Key $key, KeyStatus $oldStatus, KeyStatus $newStatus): void
     {
-        $roomNumber = $key->room?->room_number ?? 'N/A';
-        $adminUsers = User::permission('ReceiveKeyNotifications')->get();
-
-        $notification = Notification::make()
-            ->title('Key status updated')
-            ->body("Slot {$key->slot_number}, Room {$roomNumber}: {$oldStatus->value} → {$newStatus->value}")
-            ->success();
-
-        $notification->sendToDatabase($adminUsers);
-        $notification->broadcast($adminUsers);
+        KeyNotificationService::notifyKeyStatusUpdated($key, $oldStatus, $newStatus);
     }
 }
