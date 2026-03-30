@@ -246,6 +246,7 @@ return [
          * These are intended to be granted primarily to the "Admin" and "Superadmin" roles.
          */
         'receive-key-notifications',
+        'receive-schedule-notifications',
     ],
 
     /*

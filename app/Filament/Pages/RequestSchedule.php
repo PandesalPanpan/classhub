@@ -7,6 +7,7 @@ use App\Filament\Resources\Schedules\Tables\ScheduleColumns;
 use App\Filament\Resources\Schedules\Tables\ScheduleTableFilters;
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use App\Services\ScheduleNotificationService;
 use App\Services\ScheduleOverlapChecker;
 use Carbon\Carbon;
 use Filament\Actions\Action;
@@ -131,7 +132,11 @@ class RequestSchedule extends Page implements HasTable
                             }
                         }
 
-                        Schedule::create($data);
+                        $schedule = Schedule::create($data);
+
+                        if ($schedule && $schedule->status === ScheduleStatus::Pending) {
+                            ScheduleNotificationService::notifyPendingCreated($schedule);
+                        }
 
                         if ($livewire) {
                             $livewire->dispatch('filament-fullcalendar--refresh');

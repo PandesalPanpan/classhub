@@ -7,7 +7,6 @@ use App\KeyStatus;
 use App\Models\Schedule;
 use App\ScheduleStatus;
 use App\ScheduleType;
-use Illuminate\Support\Facades\Log;
 
 class ScheduleObserver
 {
@@ -24,32 +23,25 @@ class ScheduleObserver
      */
     public function updated(Schedule $schedule): void
     {
-        Log::info("Observer triggered for schedule {$schedule->id}");
-
         if (! $schedule->wasChanged('status') || $schedule->status !== ScheduleStatus::Approved) {
-            Log::info("Schedule {$schedule->id} not approved, skipping verification");
             return;
         }
 
         if (! in_array($schedule->type, [ScheduleType::Request], true)) {
-            Log::info("Schedule {$schedule->id} is not a request, skipping verification");
             return;
         }
 
         $schedule->load('room.key');
         if ($schedule->room?->key?->status === KeyStatus::Disabled) {
-            Log::info("Schedule {$schedule->id} room key is disabled, skipping verification");
             return;
         }
 
         $runAt = $schedule->getFortyPercentDurationPoint();
         if (! $runAt->isFuture()) {
-            Log::info("Schedule {$schedule->id} is not in the future, skipping verification");
             return;
         }
 
         VerifyScheduleKeyUsageJob::dispatch($schedule)->delay($runAt);
-        Log::info("Schedule {$schedule->id} verification job dispatched");
     }
 
     /**

@@ -10,6 +10,7 @@ use App\Models\Room;
 use App\Models\Schedule;
 use App\ScheduleStatus;
 use App\ScheduleType;
+use App\Services\ScheduleNotificationService;
 use App\Services\ScheduleOverlapChecker;
 use Carbon\Carbon;
 use Filament\Actions\Action;
@@ -170,6 +171,29 @@ class CalendarWidget extends FullCalendarWidget
                     }
 
                     return $data;
+                })
+                ->action(function (array $data, $livewire) {
+                    unset($data['duration_minutes']);
+
+                    // Admin panel schedules are auto-approved, app panel creates pending
+                    if ($this->isAdminPanel()) {
+                        $data['status'] = ScheduleStatus::Approved;
+                        $data['approver_id'] = Auth::id();
+                    } else {
+                        $data['status'] = ScheduleStatus::Pending;
+                    }
+
+                    $schedule = Schedule::create($data);
+
+                    // Send notification if a pending schedule was created (app panel)
+                    if (! $this->isAdminPanel() && $schedule->status === ScheduleStatus::Pending) {
+                        ScheduleNotificationService::notifyPendingCreated($schedule);
+                    }
+
+                    // Refresh the calendar to show the newly created schedule
+                    if ($livewire) {
+                        $livewire->dispatch('filament-fullcalendar--refresh');
+                    }
                 }),
             Action::make('refresh')
                 ->label('Refresh')
@@ -764,7 +788,7 @@ class CalendarWidget extends FullCalendarWidget
                     return;
                 }
 
-                Schedule::create([
+                $override = Schedule::create([
                     'room_id' => $data['room_id'],
                     'requester_id' => Auth::id(),
                     'template_id' => $template->id,
@@ -777,6 +801,8 @@ class CalendarWidget extends FullCalendarWidget
                     'program_year_section' => $data['program_year_section'],
                     'instructor' => $data['instructor'] ?? null,
                 ]);
+
+                ScheduleNotificationService::notifyOverrideRequested($override);
 
                 Notification::make()
                     ->title('Override requested')
