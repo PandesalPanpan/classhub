@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\KeyStatus;
 use App\Models\Key;
-use App\Models\User;
+use App\Models\KeyEvent;
+use App\Models\Schedule;
+use App\ScheduleStatus;
 use App\Services\KeyNotificationService;
 use Filament\Notifications\Notification;
 use Illuminate\Http\JsonResponse;
@@ -92,6 +94,16 @@ class KeyController extends Controller
             $key->status = KeyStatus::Stored;
             $key->save();
 
+            // Record the event with the active schedule (if any)
+            $activeSchedule = $this->findActiveScheduleFor($key);
+            KeyEvent::create([
+                'key_id' => $key->id,
+                'schedule_id' => $activeSchedule?->id,
+                'status' => KeyStatus::Stored->value,
+                'occurred_at' => now(),
+                'source' => 'iot',
+            ]);
+
             $this->notifyAdminKeyStatusUpdated($key, $oldStatus, KeyStatus::Stored);
 
             return response()->json([
@@ -123,6 +135,16 @@ class KeyController extends Controller
             $key->status = KeyStatus::Used;
             $key->save();
 
+            // Record the event with the active schedule (if any)
+            $activeSchedule = $this->findActiveScheduleFor($key);
+            KeyEvent::create([
+                'key_id' => $key->id,
+                'schedule_id' => $activeSchedule?->id,
+                'status' => KeyStatus::Used->value,
+                'occurred_at' => now(),
+                'source' => 'iot',
+            ]);
+
             $this->notifyAdminKeyStatusUpdated($key, $oldStatus, KeyStatus::Used);
 
             return response()->json([
@@ -142,5 +164,18 @@ class KeyController extends Controller
     private function notifyAdminKeyStatusUpdated(Key $key, KeyStatus $oldStatus, KeyStatus $newStatus): void
     {
         KeyNotificationService::notifyKeyStatusUpdated($key, $oldStatus, $newStatus);
+    }
+
+    /**
+     * Find the currently active approved schedule for the key's room, if any.
+     */
+    private function findActiveScheduleFor(Key $key): ?Schedule
+    {
+        return Schedule::query()
+            ->where('room_id', $key->room_id)
+            ->where('status', ScheduleStatus::Approved)
+            ->where('start_time', '<=', now())
+            ->where('end_time', '>=', now())
+            ->first();
     }
 }
