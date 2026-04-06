@@ -161,6 +161,13 @@
             </tr>
         </table>
 
+        @if($schedule->remarks)
+        <div class="instructions" style="background-color: #fffbeb; border-left-color: #f59e0b;">
+            <strong>📝 Admin Remarks:</strong>
+            <p style="margin: 10px 0 0 0;">{{ $schedule->remarks }}</p>
+        </div>
+        @endif
+
         <div class="instructions">
             <strong>📌 Important Instructions:</strong>
             <ul style="margin: 10px 0 0 0; padding-left: 20px;">
