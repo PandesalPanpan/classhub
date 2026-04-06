@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
 
 class Schedule extends Model
@@ -116,6 +117,11 @@ class Schedule extends Model
     public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class, 'room_id', 'id');
+    }
+
+    public function keyEvents(): HasMany
+    {
+        return $this->hasMany(KeyEvent::class)->orderBy('occurred_at');
     }
 
     public function requester(): BelongsTo
