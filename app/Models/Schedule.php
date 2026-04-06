@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\PreClassReminderJob;
 use App\ScheduleStatus;
 use App\ScheduleType;
 use App\Services\EmailNotificationService;
@@ -61,6 +62,37 @@ class Schedule extends Model
 
         // Send email notification to requester
         EmailNotificationService::sendScheduleApproved($this);
+
+        // Dispatch key-related jobs.
+        // The observer will also call this for ScheduleType::Request, so we skip
+        // here and let the observer handle it to avoid double dispatching.
+        // However, for non-Request types (e.g. admin-created schedules), we dispatch now.
+        if (! in_array($this->type, [ScheduleType::Request], true)) {
+            $this->dispatchKeyJobs();
+        }
+    }
+
+    /**
+     * Dispatch key-related jobs for this schedule after approval.
+     */
+    protected function dispatchKeyJobs(): void
+    {
+        $this->load('room.key');
+        if (! $this->room?->key) {
+            return;
+        }
+
+        // Pre-class reminder (10 min before start)
+        $reminderAt = $this->start_time->copy()->subMinutes(10);
+        if ($reminderAt->isFuture()) {
+            PreClassReminderJob::dispatch($this)->delay($reminderAt);
+        }
+
+        // Verify key usage (40% into schedule)
+        $runAt = $this->getFortyPercentDurationPoint();
+        if ($runAt->isFuture()) {
+            \App\Jobs\VerifyScheduleKeyUsageJob::dispatch($this)->delay($runAt);
+        }
     }
 
     public function reject(): void

@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Mail\Key\KeyMissing;
+use App\Mail\Schedule\KeyReadyForPickup;
+use App\Mail\Schedule\KeyWithPreviousUser;
 use App\Mail\Schedule\ScheduleApproved;
 use App\Mail\Schedule\ScheduleCancelledConfirmation;
 use App\Mail\Schedule\ScheduleCreatedConfirmation;
@@ -348,6 +350,90 @@ class EmailNotificationService
             Log::error('[EmailNotificationService] Failed to send email', [
                 'to' => $user->email,
                 'mailable' => WelcomeEmail::class,
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Send key ready for pickup reminder to the requester.
+     */
+    public static function sendKeyReadyForPickup(Schedule $schedule, ?Schedule $nextSchedule = null): void
+    {
+        Log::info('[EmailNotificationService] sendKeyReadyForPickup called', [
+            'schedule_id' => $schedule->id,
+            'requester_id' => $schedule->requester_id,
+            'requester_email' => $schedule->requester?->email,
+            'has_next_schedule' => $nextSchedule !== null,
+        ]);
+
+        if (! $schedule->requester?->email) {
+            Log::warning('[EmailNotificationService] No requester email found', ['schedule_id' => $schedule->id]);
+
+            return;
+        }
+
+        try {
+            Log::info('[EmailNotificationService] Sending KeyReadyForPickup email', [
+                'to' => $schedule->requester->email,
+            ]);
+
+            Mail::to($schedule->requester->email)
+                ->send(new KeyReadyForPickup($schedule, $nextSchedule));
+
+            Log::info('[EmailNotificationService] Email queued successfully', [
+                'to' => $schedule->requester->email,
+                'mailable' => KeyReadyForPickup::class,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('[EmailNotificationService] Failed to send email', [
+                'to' => $schedule->requester->email,
+                'mailable' => KeyReadyForPickup::class,
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Send key with previous user notification to the requester.
+     */
+    public static function sendKeyWithPreviousUser(Schedule $schedule, Schedule $previousSchedule): void
+    {
+        Log::info('[EmailNotificationService] sendKeyWithPreviousUser called', [
+            'schedule_id' => $schedule->id,
+            'previous_schedule_id' => $previousSchedule->id,
+            'requester_id' => $schedule->requester_id,
+            'requester_email' => $schedule->requester?->email,
+        ]);
+
+        if (! $schedule->requester?->email) {
+            Log::warning('[EmailNotificationService] No requester email found', ['schedule_id' => $schedule->id]);
+
+            return;
+        }
+
+        try {
+            Log::info('[EmailNotificationService] Sending KeyWithPreviousUser email', [
+                'to' => $schedule->requester->email,
+            ]);
+
+            Mail::to($schedule->requester->email)
+                ->send(new KeyWithPreviousUser($schedule, $previousSchedule));
+
+            Log::info('[EmailNotificationService] Email queued successfully', [
+                'to' => $schedule->requester->email,
+                'mailable' => KeyWithPreviousUser::class,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('[EmailNotificationService] Failed to send email', [
+                'to' => $schedule->requester->email,
+                'mailable' => KeyWithPreviousUser::class,
                 'exception' => get_class($e),
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
