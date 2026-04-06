@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\EmailNotificationService;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -14,7 +15,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, HasRoles, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -88,6 +89,13 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
                 return;
             }
             $user->assignRole('Class Representative');
+        });
+
+        // Send welcome email after email is verified
+        static::updated(function (User $user) {
+            if ($user->wasChanged('email_verified_at') && $user->email_verified_at !== null) {
+                EmailNotificationService::sendWelcomeEmail($user);
+            }
         });
     }
 }

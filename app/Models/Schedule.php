@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\ScheduleStatus;
 use App\ScheduleType;
+use App\Services\EmailNotificationService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -56,6 +57,9 @@ class Schedule extends Model
             'status' => ScheduleStatus::Approved,
             'approver_id' => Auth::id(),
         ]);
+
+        // Send email notification to requester
+        EmailNotificationService::sendScheduleApproved($this);
     }
 
     public function reject(): void
@@ -64,6 +68,9 @@ class Schedule extends Model
             'status' => ScheduleStatus::Rejected,
             'approver_id' => Auth::id(),
         ]);
+
+        // Send email notification to requester
+        EmailNotificationService::sendScheduleRejected($this);
     }
 
     public function cancel(): void
@@ -71,6 +78,9 @@ class Schedule extends Model
         $this->update([
             'status' => ScheduleStatus::Cancelled,
         ]);
+
+        // Send cancellation confirmation email to requester
+        EmailNotificationService::sendScheduleCancelledConfirmation($this);
     }
 
     public function expire(): void
@@ -78,6 +88,9 @@ class Schedule extends Model
         $this->update([
             'status' => ScheduleStatus::Expired,
         ]);
+
+        // Send expired schedule email to requester
+        EmailNotificationService::sendScheduleExpired($this);
     }
 
     /**

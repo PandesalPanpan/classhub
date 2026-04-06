@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\KeyStatus;
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use App\Services\EmailNotificationService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -63,6 +64,9 @@ class PostClassCheckJob implements ShouldQueue
 
         if (! $nextSchedule) {
             $key->update(['status' => KeyStatus::Missing]);
+
+            // Send email notification to admins about missing key
+            EmailNotificationService::sendKeyMissing($this->schedule);
         } else {
             $key->update(['status' => KeyStatus::HandedOver]);
         }

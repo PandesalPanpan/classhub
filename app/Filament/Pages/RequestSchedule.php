@@ -7,6 +7,7 @@ use App\Filament\Resources\Schedules\Tables\ScheduleColumns;
 use App\Filament\Resources\Schedules\Tables\ScheduleTableFilters;
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use App\Services\EmailNotificationService;
 use App\Services\ScheduleNotificationService;
 use App\Services\ScheduleOverlapChecker;
 use Carbon\Carbon;
@@ -136,6 +137,9 @@ class RequestSchedule extends Page implements HasTable
 
                         if ($schedule && $schedule->status === ScheduleStatus::Pending) {
                             ScheduleNotificationService::notifyPendingCreated($schedule);
+
+                            // Send confirmation email to requester
+                            EmailNotificationService::sendScheduleCreatedConfirmation($schedule);
                         }
 
                         if ($livewire) {

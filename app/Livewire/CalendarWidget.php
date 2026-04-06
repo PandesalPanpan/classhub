@@ -10,15 +10,16 @@ use App\Models\Room;
 use App\Models\Schedule;
 use App\ScheduleStatus;
 use App\ScheduleType;
+use App\Services\EmailNotificationService;
 use App\Services\ScheduleNotificationService;
 use App\Services\ScheduleOverlapChecker;
 use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
-use Filament\Support\Exceptions\Halt;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
+use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -188,6 +189,7 @@ class CalendarWidget extends FullCalendarWidget
                     // Send notification if a pending schedule was created (app panel)
                     if (! $this->isAdminPanel() && $schedule->status === ScheduleStatus::Pending) {
                         ScheduleNotificationService::notifyPendingCreated($schedule);
+                        EmailNotificationService::sendScheduleCreatedConfirmation($schedule);
                     }
 
                     // Refresh the calendar to show the newly created schedule
@@ -299,13 +301,13 @@ class CalendarWidget extends FullCalendarWidget
                     $this->findAvailableRoomsResults = $results;
 
                     $idx = array_key_last($this->mountedActions);
-                    if ($idx !== null && isset($this->cachedSchemas['mountedActionSchema' . $idx])) {
-                        unset($this->cachedSchemas['mountedActionSchema' . $idx]);
+                    if ($idx !== null && isset($this->cachedSchemas['mountedActionSchema'.$idx])) {
+                        unset($this->cachedSchemas['mountedActionSchema'.$idx]);
                     }
 
                     throw new Halt;
                 }),
-                Action::make('showValidPendingSchedules')
+            Action::make('showValidPendingSchedules')
                 ->label(fn () => $this->showValidPendingSchedules ? 'Hide valid pending' : 'Show valid pending')
                 ->icon(fn () => $this->showValidPendingSchedules ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
                 ->color($this->showValidPendingSchedules ? 'primary' : 'gray')
@@ -803,6 +805,9 @@ class CalendarWidget extends FullCalendarWidget
                 ]);
 
                 ScheduleNotificationService::notifyOverrideRequested($override);
+
+                // Send confirmation email to requester
+                EmailNotificationService::sendScheduleOverridePendingConfirmation($override);
 
                 Notification::make()
                     ->title('Override requested')

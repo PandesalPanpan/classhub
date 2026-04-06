@@ -17,6 +17,8 @@ class RoomsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->poll('10s')
+            ->defaultPaginationPageOption(25)
             ->columns([
                 TextColumn::make('room_number')
                     ->searchable(),
