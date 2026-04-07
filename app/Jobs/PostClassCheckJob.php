@@ -123,6 +123,10 @@ class PostClassCheckJob implements ShouldQueue
             if ($nextRunAt->isFuture()) {
                 PostClassCheckJob::dispatch($nextSchedule)->delay($nextRunAt);
             }
+
+            // Notify both parties that a handover is assumed.
+            // If this is wrong, either A or B can correct it.
+            EmailNotificationService::sendHandoverAssumed($this->schedule, $nextSchedule);
         }
     }
 

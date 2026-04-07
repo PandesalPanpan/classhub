@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Mail\Key\KeyMissing;
+use App\Mail\Schedule\HandoverAssumed;
 use App\Mail\Schedule\KeyReadyForPickup;
 use App\Mail\Schedule\KeyWithPreviousUser;
 use App\Mail\Schedule\ScheduleApproved;
@@ -439,6 +440,114 @@ class EmailNotificationService
                 'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
+        }
+    }
+
+    /**
+     * Send key missing reminder to the requester when key status is Missing
+     * before their class starts.
+     */
+    public static function sendKeyMissingReminder(Schedule $schedule): void
+    {
+        Log::info('[EmailNotificationService] sendKeyMissingReminder called', [
+            'schedule_id' => $schedule->id,
+            'requester_id' => $schedule->requester_id,
+            'requester_email' => $schedule->requester?->email,
+        ]);
+
+        if (! $schedule->requester?->email) {
+            Log::warning('[EmailNotificationService] No requester email found', ['schedule_id' => $schedule->id]);
+
+            return;
+        }
+
+        try {
+            Log::info('[EmailNotificationService] Sending KeyMissingReminder email', [
+                'to' => $schedule->requester->email,
+            ]);
+
+            // Reuse the KeyMissing mailable — it's addressed to the requester
+            // rather than admins, but the template shows the same info.
+            Mail::to($schedule->requester->email)
+                ->send(new KeyMissing($schedule, $schedule->requester));
+
+            Log::info('[EmailNotificationService] Email queued successfully', [
+                'to' => $schedule->requester->email,
+                'mailable' => KeyMissing::class,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('[EmailNotificationService] Failed to send email', [
+                'to' => $schedule->requester->email,
+                'mailable' => KeyMissing::class,
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Send handover assumed notification to both parties when the system
+     * detects that the key was not returned but the next schedule is in
+     * the handover window. This is an assumption — not a confirmation.
+     * Both parties can correct the system if it's wrong.
+     */
+    public static function sendHandoverAssumed(Schedule $previousSchedule, Schedule $nextSchedule): void
+    {
+        Log::info('[EmailNotificationService] sendHandoverAssumed called', [
+            'previous_schedule_id' => $previousSchedule->id,
+            'next_schedule_id' => $nextSchedule->id,
+        ]);
+
+        // Notify the previous schedule's requester
+        if ($previousSchedule->requester?->email) {
+            try {
+                Log::info('[EmailNotificationService] Sending HandoverAssumed to previous requester', [
+                    'to' => $previousSchedule->requester->email,
+                ]);
+
+                Mail::to($previousSchedule->requester->email)
+                    ->send(new HandoverAssumed($previousSchedule, $nextSchedule, 'previous'));
+
+                Log::info('[EmailNotificationService] Email queued successfully', [
+                    'to' => $previousSchedule->requester->email,
+                    'mailable' => HandoverAssumed::class,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('[EmailNotificationService] Failed to send email', [
+                    'to' => $previousSchedule->requester->email,
+                    'mailable' => HandoverAssumed::class,
+                    'exception' => get_class($e),
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+            }
+        }
+
+        // Notify the next schedule's requester
+        if ($nextSchedule->requester?->email) {
+            try {
+                Log::info('[EmailNotificationService] Sending HandoverAssumed to next requester', [
+                    'to' => $nextSchedule->requester->email,
+                ]);
+
+                Mail::to($nextSchedule->requester->email)
+                    ->send(new HandoverAssumed($previousSchedule, $nextSchedule, 'next'));
+
+                Log::info('[EmailNotificationService] Email queued successfully', [
+                    'to' => $nextSchedule->requester->email,
+                    'mailable' => HandoverAssumed::class,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('[EmailNotificationService] Failed to send email', [
+                    'to' => $nextSchedule->requester->email,
+                    'mailable' => HandoverAssumed::class,
+                    'exception' => get_class($e),
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+            }
         }
     }
 }

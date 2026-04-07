@@ -42,28 +42,22 @@ class VerifyScheduleKeyUsageJob implements ShouldQueue
      */
     public function handle(): void
     {
-        // Refresh the schedule to get latest data and relationships
         $this->schedule->refresh();
         $this->schedule->load('room.key');
 
-        // Only process if schedule is still approved
-        // It might have been cancelled or expired before this job ran
         if ($this->schedule->status !== ScheduleStatus::Approved) {
             return;
         }
 
-        // Check if room and key exist
         if (! $this->schedule->room || ! $this->schedule->room->key) {
             return;
         }
 
         $key = $this->schedule->room->key;
 
-        // Was this key used for THIS schedule?
-        // We check for a USED event that either:
-        //   (a) Is directly attributed to this schedule, OR
-        //   (b) Occurred within a 15-minute window before the schedule's start
-        //       through its end (covers early grab scenarios)
+        // Check for ANY USED event — IoT scan OR synthetic handover.
+        // A handover never hits the IoT, so the synthetic event from PostClassCheck
+        // is the valid proof that the key was handed off to this schedule.
         $wasUsed = KeyEvent::where('key_id', $key->id)
             ->where('status', KeyStatus::Used->value)
             ->where(function ($query) {
@@ -75,17 +69,19 @@ class VerifyScheduleKeyUsageJob implements ShouldQueue
             })
             ->exists();
 
-        if (! $wasUsed) {
-            // Key was never taken out during this schedule — expire it
-            $this->schedule->expire();
+        if ($wasUsed) {
+            $runAt = $this->schedule->getPostClassCheckRunAt(10);
+            if ($runAt->isFuture()) {
+                PostClassCheckJob::dispatch($this->schedule)->delay($runAt);
+            }
 
             return;
         }
 
-        // Key was used — ensure post-class check is scheduled
-        $runAt = $this->schedule->getPostClassCheckRunAt(10);
-        if ($runAt->isFuture()) {
-            PostClassCheckJob::dispatch($this->schedule)->delay($runAt);
-        }
+        // No USED event at all — the key was never used for this schedule.
+        // Expire it. The PostClassCheck from the previous schedule would have
+        // created a synthetic event if it assumed a handoff, so reaching here
+        // means no handoff was assumed either.
+        $this->schedule->expire();
     }
 }
