@@ -18,9 +18,11 @@ use Filament\Tables\Table;
 
 class RoomResource extends Resource
 {
+    protected static ?string $navigationLabel = 'Rooms & Keys';
+
     protected static ?string $model = Room::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedKey;
 
     protected static ?string $recordTitleAttribute = 'room_number';
 

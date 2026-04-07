@@ -20,6 +20,8 @@ use Filament\Support\Enums\ActionSize;
 use Illuminate\Support\Facades\Auth;
 use App\Services\ScheduleOverlapChecker;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+use Filament\Support\Icons\Heroicon;
+
 
 class BulkSchedule extends Page implements HasForms, HasActions
 {
@@ -35,7 +37,7 @@ class BulkSchedule extends Page implements HasForms, HasActions
 
     protected static ?string $navigationLabel = 'Bulk Schedule';
 
-    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-calendar-days';
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDateRange;
 
     protected string $view = 'filament.pages.bulk-schedule';
 
