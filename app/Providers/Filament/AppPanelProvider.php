@@ -18,6 +18,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
+use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
 
 class AppPanelProvider extends PanelProvider
 {
@@ -34,6 +35,7 @@ class AppPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Red,
             ])
+            ->viteTheme('resources/css/filament/app/theme.css')
             // ->discoverResources(in: app_path('Filament/App/Resources'), for: 'App\Filament\App\Resources')
             // ->discoverPages(in: app_path('Filament/App/Pages'), for: 'App\Filament\App\Pages')
             ->pages([
@@ -58,22 +60,30 @@ class AppPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ])
-            ->plugin(
-                FilamentFullCalendarPlugin::make()
-                    ->schedulerLicenseKey('GPL-My-Project-Is-Open-Source')
-                    ->selectable(true)
-                    ->timezone(config('app.timezone'))
-                    ->plugins([
-                        'dayGrid',
-                        'timeGrid',
-                        'interaction',
-                        'list',
-                        'resource',
-                        'resourceTimeline',
-                    ])
-                    ->config([
-                        'initialView' => 'timeGridWeek',
-                    ])
+            ->plugins(
+                [
+                    FilamentFullCalendarPlugin::make()
+                        ->schedulerLicenseKey('GPL-My-Project-Is-Open-Source')
+                        ->selectable(true)
+                        ->timezone(config('app.timezone'))
+                        ->plugins([
+                            'dayGrid',
+                            'timeGrid',
+                            'interaction',
+                            'list',
+                            'resource',
+                            'resourceTimeline',
+                        ])
+                        ->config([
+                            'initialView' => 'timeGridWeek',
+                        ]),
+                        AuthUIEnhancerPlugin::make()
+                            ->formPanelPosition('right')
+                            ->formPanelWidth('40%')
+                            ->emptyPanelBackgroundImageUrl('https://i.imgur.com/2xQUt6D.jpeg')
+                ]
+
+
             );
     }
 }
