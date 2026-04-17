@@ -3,11 +3,13 @@
 namespace App\Jobs;
 
 use App\KeyStatus;
+use App\Models\Key;
 use App\Models\KeyEvent;
 use App\Models\Schedule;
+use App\Models\ScheduleHandover;
 use App\ScheduleStatus;
 use App\Services\EmailNotificationService;
-use Carbon\Carbon;
+use App\Services\HandoverOperationalService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -20,25 +22,10 @@ class PostClassCheckJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    /**
-     * Maximum gap (minutes) between end of current schedule and start of next
-     * to allow handover. If gap is larger, key must be returned to box.
-     */
-    public const HANDOVER_WINDOW_MINUTES = 20;
-
-    /**
-     * Create a new job instance.
-     */
     public function __construct(
         public Schedule $schedule
     ) {}
 
-    /**
-     * Get the middleware the job should be processed with.
-     *
-     * Prevents duplicate processing (e.g., on retry) which could cause
-     * duplicate synthetic events and email spam.
-     */
     public function middleware(): array
     {
         return [
@@ -46,9 +33,6 @@ class PostClassCheckJob implements ShouldQueue
         ];
     }
 
-    /**
-     * Execute the job.
-     */
     public function handle(): void
     {
         $this->schedule->refresh();
@@ -69,10 +53,10 @@ class PostClassCheckJob implements ShouldQueue
             return;
         }
 
-        // Step 1: Was the key returned? Check for a STORED event after class ended.
+        // Step 1: Was the key returned? Check for a STORED event at/after class ended.
         $wasReturned = KeyEvent::where('key_id', $key->id)
             ->where('status', KeyStatus::Stored->value)
-            ->where('occurred_at', '>', $this->schedule->end_time)
+            ->where('occurred_at', '>=', $this->schedule->end_time)
             ->exists();
 
         if ($wasReturned) {
@@ -80,70 +64,81 @@ class PostClassCheckJob implements ShouldQueue
                 'schedule_id' => $this->schedule->id,
             ]);
 
+            // If a pending handover existed for this schedule, finalize it cleanly
+            // (key came back — no missing, no operational handover needed).
+            $handover = ScheduleHandover::where('previous_schedule_id', $this->schedule->id)
+                ->whereNull('resolution_finalized_at')
+                ->first();
+
+            if ($handover) {
+                $handover->markFinalized();
+                Log::info('PostClassCheckJob: Finalized pending handover (key returned)', [
+                    'handover_id' => $handover->id,
+                ]);
+            }
+
             return;
         }
 
-        // Step 2: Key not returned — check for next schedule in handover window
-        $nextSchedule = $this->findNextScheduleInHandoverWindow();
+        // Step 2: Key not returned — check for an existing pending handover.
+        $handover = ScheduleHandover::where('previous_schedule_id', $this->schedule->id)
+            ->whereNull('resolution_finalized_at')
+            ->with(['nextSchedule'])
+            ->first();
 
-        if (! $nextSchedule) {
-            $key->update(['status' => KeyStatus::Missing]);
-
-            Log::warning('PostClassCheckJob: Key marked as MISSING', [
-                'schedule_id' => $this->schedule->id,
-                'key_id' => $key->id,
-            ]);
-
-            EmailNotificationService::sendKeyMissing($this->schedule);
+        if ($handover) {
+            $this->resolveHandover($handover, $key);
         } else {
-            $key->update(['status' => KeyStatus::HandedOver]);
-
-            Log::info('PostClassCheckJob: Key handed over to next schedule', [
-                'from_schedule_id' => $this->schedule->id,
-                'to_schedule_id' => $nextSchedule->id,
-            ]);
-
-            // Create a synthetic USED event for the next schedule.
-            // The IoT never reported this (the key was never put back and taken out again),
-            // but the next schedule's VerifyJob needs evidence the key was in use for it.
-            KeyEvent::firstOrCreate([
-                'key_id' => $key->id,
-                'schedule_id' => $nextSchedule->id,
-                'status' => KeyStatus::Used->value,
-                'source' => 'synthetic',
-            ], [
-                'occurred_at' => $nextSchedule->start_time,
-            ]);
-
-            // Ensure the next schedule gets a PostClassCheckJob.
-            // It may already have one from its VerifyJob, but if that job
-            // hasn't run yet (or the next schedule was approved late), this
-            // guarantees the chain continues.
-            $nextRunAt = $nextSchedule->getPostClassCheckRunAt(10);
-            if ($nextRunAt->isFuture()) {
-                PostClassCheckJob::dispatch($nextSchedule)->delay($nextRunAt);
-            }
-
-            // Notify both parties that a handover is assumed.
-            // If this is wrong, either A or B can correct it.
-            EmailNotificationService::sendHandoverAssumed($this->schedule, $nextSchedule);
+            // No handover was offered (EndOfClassJob found no eligible next
+            // schedule, or was never dispatched). Key is simply missing.
+            $this->markKeyMissing($key);
         }
     }
 
     /**
-     * Find the next approved schedule in the same room that starts within the handover window.
+     * Resolve a pending handover: apply if both confirmed, otherwise mark missing.
      */
-    protected function findNextScheduleInHandoverWindow(): ?Schedule
+    private function resolveHandover(ScheduleHandover $handover, Key $key): void
     {
-        $windowEnd = Carbon::instance($this->schedule->end_time)->addMinutes(self::HANDOVER_WINDOW_MINUTES);
+        if ($handover->isBothConfirmed()) {
+            Log::info('PostClassCheckJob: Both parties confirmed — applying operational handover', [
+                'schedule_id' => $this->schedule->id,
+                'handover_id' => $handover->id,
+            ]);
 
-        return Schedule::query()
-            ->where('room_id', $this->schedule->room_id)
-            ->where('id', '!=', $this->schedule->id)
-            ->where('status', ScheduleStatus::Approved)
-            ->where('start_time', '>', $this->schedule->end_time)
-            ->where('start_time', '<=', $windowEnd)
-            ->orderBy('start_time')
-            ->first();
+            HandoverOperationalService::apply($handover);
+
+            return;
+        }
+
+        // Not both confirmed (could be neither, or only one, or a dispute) → missing.
+        Log::warning('PostClassCheckJob: Handover not fully confirmed — marking key missing', [
+            'schedule_id' => $this->schedule->id,
+            'handover_id' => $handover->id,
+            'previous_confirmed_at' => $handover->previous_confirmed_at,
+            'next_confirmed_at' => $handover->next_confirmed_at,
+            'previous_disputed_at' => $handover->previous_disputed_at,
+            'next_disputed_at' => $handover->next_disputed_at,
+        ]);
+
+        $handover->markFinalized();
+        $this->markKeyMissing($key);
+    }
+
+    /**
+     * Mark the key as missing, notify admins, and send an urgent notice to
+     * the schedule's requester to return the key immediately.
+     */
+    private function markKeyMissing(Key $key): void
+    {
+        $key->update(['status' => KeyStatus::Missing]);
+
+        Log::warning('PostClassCheckJob: Key marked as MISSING', [
+            'schedule_id' => $this->schedule->id,
+            'key_id' => $key->id,
+        ]);
+
+        EmailNotificationService::sendKeyMissing($this->schedule);
+        EmailNotificationService::sendHandoverKeyMissingToRequester($this->schedule);
     }
 }

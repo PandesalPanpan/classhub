@@ -177,6 +177,12 @@
             </ul>
         </div>
 
+        @if($nextSchedule)
+        <div class="handover-hint" style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; margin: 15px 0 0 0; border-radius: 0 6px 6px 0; font-size: 14px;">
+            <strong>🤝 Handover Available:</strong> There is another class scheduled right after yours at <strong>{{ $nextSchedule->start_time->format('g:i A') }}</strong> by <strong>{{ $nextSchedule->requester?->name ?? 'another user' }}</strong>. You can pass the key directly to them instead of returning it to the lab.
+        </div>
+        @endif
+
         <div class="btn-container">
             <a href="{{ config('app.url') }}/portal/request-schedule" class="btn">View My Schedule</a>
         </div>

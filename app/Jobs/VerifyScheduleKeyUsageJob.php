@@ -17,19 +17,10 @@ class VerifyScheduleKeyUsageJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    /**
-     * Create a new job instance.
-     */
     public function __construct(
         public Schedule $schedule
     ) {}
 
-    /**
-     * Get the middleware the job should be processed with.
-     *
-     * Prevents duplicate processing of the same schedule's verify job,
-     * which could happen if the job is retried after a transient failure.
-     */
     public function middleware(): array
     {
         return [
@@ -37,9 +28,6 @@ class VerifyScheduleKeyUsageJob implements ShouldQueue
         ];
     }
 
-    /**
-     * Execute the job.
-     */
     public function handle(): void
     {
         $this->schedule->refresh();
@@ -56,8 +44,7 @@ class VerifyScheduleKeyUsageJob implements ShouldQueue
         $key = $this->schedule->room->key;
 
         // Check for ANY USED event — IoT scan OR synthetic handover.
-        // A handover never hits the IoT, so the synthetic event from PostClassCheck
-        // is the valid proof that the key was handed off to this schedule.
+        // A synthetic event created by HandoverOperationalService is valid proof.
         $wasUsed = KeyEvent::where('key_id', $key->id)
             ->where('status', KeyStatus::Used->value)
             ->where(function ($query) {
@@ -70,18 +57,18 @@ class VerifyScheduleKeyUsageJob implements ShouldQueue
             ->exists();
 
         if ($wasUsed) {
-            $runAt = $this->schedule->getPostClassCheckRunAt(10);
-            if ($runAt->isFuture()) {
-                PostClassCheckJob::dispatch($this->schedule)->delay($runAt);
+            // Queue end-of-class evaluation at exactly schedule end.
+            $endOfClassRunAt = $this->schedule->end_time;
+            if ($endOfClassRunAt->isFuture()) {
+                EndOfClassJob::dispatch($this->schedule)->delay($endOfClassRunAt);
+            } else {
+                EndOfClassJob::dispatch($this->schedule);
             }
 
             return;
         }
 
-        // No USED event at all — the key was never used for this schedule.
-        // Expire it. The PostClassCheck from the previous schedule would have
-        // created a synthetic event if it assumed a handoff, so reaching here
-        // means no handoff was assumed either.
+        // No USED event — key was never used for this schedule; expire it.
         $this->schedule->expire();
     }
 }

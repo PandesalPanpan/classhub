@@ -15,7 +15,8 @@ class ScheduleApproved extends Mailable implements ShouldQueue
     use Queueable, SerializesModels;
 
     public function __construct(
-        public Schedule $schedule
+        public Schedule $schedule,
+        public ?Schedule $nextSchedule = null
     ) {}
 
     public function envelope(): Envelope

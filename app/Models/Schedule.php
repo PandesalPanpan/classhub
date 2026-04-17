@@ -2,20 +2,24 @@
 
 namespace App\Models;
 
-use App\Jobs\PreClassReminderJob;
+use App\Jobs\VerifyScheduleKeyUsageJob;
 use App\ScheduleStatus;
 use App\ScheduleType;
 use App\Services\EmailNotificationService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 
 class Schedule extends Model
 {
+    use HasFactory;
+
     /**
      * Scope: pending schedules that match the exact room and time slot.
      */
@@ -60,8 +64,12 @@ class Schedule extends Model
             'approver_id' => Auth::id(),
         ]);
 
+        // Look up next approved schedule in the same room within the handover window
+        // so the approval email can include a handover hint immediately.
+        $nextSchedule = $this->findNextScheduleInHandoverWindow();
+
         // Send email notification to requester
-        EmailNotificationService::sendScheduleApproved($this);
+        EmailNotificationService::sendScheduleApproved($this, $nextSchedule);
 
         // Dispatch key-related jobs.
         // The observer will also call this for ScheduleType::Request, so we skip
@@ -73,26 +81,42 @@ class Schedule extends Model
     }
 
     /**
+     * Find the next approved schedule in the same room that starts within the handover window.
+     * Uses >= so back-to-back slots (A ends 12:00, B starts 12:00) are eligible.
+     */
+    public function findNextScheduleInHandoverWindow(): ?Schedule
+    {
+        $windowEnd = $this->end_time->copy()->addMinutes((int) config('classhub.schedule.handover_eligibility_window_minutes', 30));
+
+        return Schedule::query()
+            ->where('room_id', $this->room_id)
+            ->where('id', '!=', $this->id)
+            ->where('status', ScheduleStatus::Approved)
+            ->where('start_time', '>=', $this->end_time)
+            ->where('start_time', '<=', $windowEnd)
+            ->orderBy('start_time')
+            ->first();
+    }
+
+    /**
      * Dispatch key-related jobs for this schedule after approval.
      */
-    protected function dispatchKeyJobs(): void
+    public function dispatchKeyJobs(): void
     {
         $this->load('room.key');
         if (! $this->room?->key) {
             return;
         }
 
-        // Pre-class reminder (10 min before start)
-        $reminderAt = $this->start_time->copy()->subMinutes(10);
-        if ($reminderAt->isFuture()) {
-            PreClassReminderJob::dispatch($this)->delay($reminderAt);
-        }
-
         // Verify key usage (40% into schedule)
         $runAt = $this->getFortyPercentDurationPoint();
         if ($runAt->isFuture()) {
-            \App\Jobs\VerifyScheduleKeyUsageJob::dispatch($this)->delay($runAt);
+            VerifyScheduleKeyUsageJob::dispatch($this)->delay($runAt);
+
+            return;
         }
+
+        VerifyScheduleKeyUsageJob::dispatch($this);
     }
 
     public function reject(): void
@@ -133,16 +157,19 @@ class Schedule extends Model
     public function getFortyPercentDurationPoint(): \Illuminate\Support\Carbon
     {
         $durationInSeconds = $this->start_time->diffInSeconds($this->end_time);
-        $delayInSeconds = (int) ($durationInSeconds * 0.4);
+        $keyUsageCheckPercent = (float) config('classhub.schedule.key_usage_check_percent', 0.4);
+        $delayInSeconds = (int) ($durationInSeconds * $keyUsageCheckPercent);
 
         return $this->start_time->copy()->addSeconds($delayInSeconds);
     }
 
     /**
-     * When to run the post-class check (key return / handover). Default: end_time + 10 minutes.
+     * When to run the post-class check (key return / handover).
      */
-    public function getPostClassCheckRunAt(int $minutesAfterEnd = 10): \Illuminate\Support\Carbon
+    public function getPostClassCheckRunAt(?int $minutesAfterEnd = null): \Illuminate\Support\Carbon
     {
+        $minutesAfterEnd ??= (int) config('classhub.schedule.grace_period_minutes', 15);
+
         return $this->end_time->copy()->addMinutes($minutesAfterEnd);
     }
 
@@ -154,6 +181,22 @@ class Schedule extends Model
     public function keyEvents(): HasMany
     {
         return $this->hasMany(KeyEvent::class)->orderBy('occurred_at');
+    }
+
+    /**
+     * The handover record where this schedule is the outgoing (previous) party.
+     */
+    public function handoverAsPrevious(): HasOne
+    {
+        return $this->hasOne(ScheduleHandover::class, 'previous_schedule_id');
+    }
+
+    /**
+     * The handover record where this schedule is the incoming (next) party.
+     */
+    public function handoverAsNext(): HasOne
+    {
+        return $this->hasOne(ScheduleHandover::class, 'next_schedule_id');
     }
 
     public function requester(): BelongsTo
