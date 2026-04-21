@@ -30,6 +30,8 @@ class VerifyIotRoomKey
             ], 401);
         }
 
+        cache()->put('iot_last_ping_at', now()->toIso8601String(), now()->addHours(1));
+
         return $next($request);
     }
 }

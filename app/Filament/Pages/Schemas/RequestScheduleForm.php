@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages\Schemas;
 
+use App\Models\Setting;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -53,6 +54,10 @@ class RequestScheduleForm
                         ->native(false)
                         ->displayFormat('F j Y g:iA')
                         ->format('Y-m-d H:i:s')
+                        ->minDate(fn () => Setting::get('allow_past_schedule_requests') ? null : now())
+                        ->helperText(fn () => Setting::get('allow_past_schedule_requests')
+                            ? 'You can request schedules in the past and future.'
+                            : 'Past schedule requests are currently disabled by the administrator.')
                         ->live()
                         ->columnSpan(1)
                         ->afterStateUpdated(function (Get $get, Set $set) {

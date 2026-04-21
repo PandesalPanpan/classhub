@@ -33,6 +33,10 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
         ]);
 
+        $this->call([
+            SettingsSeeder::class,
+        ]);
+
         // $this->call([
         //     ScheduleSeeder::class,
         // ]);

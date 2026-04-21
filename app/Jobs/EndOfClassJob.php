@@ -6,6 +6,7 @@ use App\KeyStatus;
 use App\Models\KeyEvent;
 use App\Models\Schedule;
 use App\Models\ScheduleHandover;
+use App\Models\Setting;
 use App\ScheduleStatus;
 use App\Services\EmailNotificationService;
 use Carbon\Carbon;
@@ -66,6 +67,16 @@ class EndOfClassJob implements ShouldQueue
             return;
         }
 
+        if (! (bool) Setting::get('handover_enabled')) {
+            Log::info('EndOfClassJob: Handover disabled, dispatching PostClassCheckJob', [
+                'schedule_id' => $this->schedule->id,
+            ]);
+
+            $this->dispatchPostClassCheck();
+
+            return;
+        }
+
         $nextSchedule = $this->findNextScheduleInHandoverWindow();
 
         if (! $nextSchedule) {
@@ -84,7 +95,7 @@ class EndOfClassJob implements ShouldQueue
             [
                 'next_schedule_id' => $nextSchedule->id,
                 'resolution_deadline_at' => Carbon::instance($this->schedule->end_time)
-                    ->addMinutes((int) config('classhub.schedule.grace_period_minutes', 15)),
+                    ->addMinutes((int) Setting::get('grace_period_minutes')),
             ]
         );
 
@@ -114,7 +125,7 @@ class EndOfClassJob implements ShouldQueue
     protected function findNextScheduleInHandoverWindow(): ?Schedule
     {
         $windowEnd = Carbon::instance($this->schedule->end_time)
-            ->addMinutes((int) config('classhub.schedule.handover_eligibility_window_minutes', 30));
+            ->addMinutes((int) Setting::get('handover_eligibility_window_minutes'));
 
         return Schedule::query()
             ->where('room_id', $this->schedule->room_id)

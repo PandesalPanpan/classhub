@@ -86,7 +86,8 @@ class Schedule extends Model
      */
     public function findNextScheduleInHandoverWindow(): ?Schedule
     {
-        $windowEnd = $this->end_time->copy()->addMinutes((int) config('classhub.schedule.handover_eligibility_window_minutes', 30));
+        $windowMinutes = (int) Setting::get('handover_eligibility_window_minutes');
+        $windowEnd = $this->end_time->copy()->addMinutes($windowMinutes);
 
         return Schedule::query()
             ->where('room_id', $this->room_id)
@@ -157,7 +158,7 @@ class Schedule extends Model
     public function getFortyPercentDurationPoint(): \Illuminate\Support\Carbon
     {
         $durationInSeconds = $this->start_time->diffInSeconds($this->end_time);
-        $keyUsageCheckPercent = (float) config('classhub.schedule.key_usage_check_percent', 0.4);
+        $keyUsageCheckPercent = (float) Setting::get('key_usage_check_percent');
         $delayInSeconds = (int) ($durationInSeconds * $keyUsageCheckPercent);
 
         return $this->start_time->copy()->addSeconds($delayInSeconds);
@@ -168,7 +169,7 @@ class Schedule extends Model
      */
     public function getPostClassCheckRunAt(?int $minutesAfterEnd = null): \Illuminate\Support\Carbon
     {
-        $minutesAfterEnd ??= (int) config('classhub.schedule.grace_period_minutes', 15);
+        $minutesAfterEnd ??= (int) Setting::get('grace_period_minutes');
 
         return $this->end_time->copy()->addMinutes($minutesAfterEnd);
     }

@@ -1,71 +1,70 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
+use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Room;
-use App\Models\User;
+use Illuminate\Auth\Access\HandlesAuthorization;
 
 class RoomPolicy
 {
-    public function viewAny(User $user): bool
+    use HandlesAuthorization;
+    
+    public function viewAny(AuthUser $authUser): bool
     {
-        return $user->can('ViewAny:Room');
+        return $authUser->can('ViewAny:Room');
     }
 
-    public function view(User $user, Room $room): bool
+    public function view(AuthUser $authUser, Room $room): bool
     {
-        return $user->can('View:Room');
+        return $authUser->can('View:Room');
     }
 
-    public function create(User $user): bool
+    public function create(AuthUser $authUser): bool
     {
-        return $user->can('Create:Room');
+        return $authUser->can('Create:Room');
     }
 
-    public function update(User $user, Room $room): bool
+    public function update(AuthUser $authUser, Room $room): bool
     {
-        return $user->can('Update:Room');
+        return $authUser->can('Update:Room');
     }
 
-    public function delete(User $user, Room $room): bool
+    public function delete(AuthUser $authUser, Room $room): bool
     {
-        return $user->can('Delete:Room');
+        return $authUser->can('Delete:Room');
     }
 
-    public function restore(User $user, Room $room): bool
+    public function restore(AuthUser $authUser, Room $room): bool
     {
-        return $user->can('Restore:Room');
+        return $authUser->can('Restore:Room');
     }
 
-    public function forceDelete(User $user, Room $room): bool
+    public function forceDelete(AuthUser $authUser, Room $room): bool
     {
-        return $user->can('ForceDelete:Room');
+        return $authUser->can('ForceDelete:Room');
     }
 
-    public function deleteAny(User $user): bool
+    public function forceDeleteAny(AuthUser $authUser): bool
     {
-        return $user->can('DeleteAny:Room');
+        return $authUser->can('ForceDeleteAny:Room');
     }
 
-    public function forceDeleteAny(User $user): bool
+    public function restoreAny(AuthUser $authUser): bool
     {
-        return $user->can('ForceDeleteAny:Room');
+        return $authUser->can('RestoreAny:Room');
     }
 
-    public function restoreAny(User $user): bool
+    public function replicate(AuthUser $authUser, Room $room): bool
     {
-        return $user->can('RestoreAny:Room');
+        return $authUser->can('Replicate:Room');
     }
 
-    public function replicate(User $user, Room $room): bool
+    public function reorder(AuthUser $authUser): bool
     {
-        return $user->can('Replicate:Room');
+        return $authUser->can('Reorder:Room');
     }
 
-    public function reorder(User $user): bool
-    {
-        return $user->can('Reorder:Room');
-    }
 }
-
-

@@ -17,6 +17,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_25.x | bash - \
 
 RUN docker-php-ext-install pdo_mysql zip pcntl
 RUN docker-php-ext-configure intl && docker-php-ext-install intl
+RUN (pecl list | grep -q '^redis ' || pecl install redis) && docker-php-ext-enable redis
 
 # Copy application code
 # COPY . /var/www/html

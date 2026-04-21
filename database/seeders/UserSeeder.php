@@ -14,44 +14,44 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         User::create([
-            'name' => 'Admin',
-            'email' => 'admin@test.com',
+            'name' => 'Peter Marticio',
+            'email' => 'petermarticio@gmail.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password'),
         ])->assignRole('Superadmin');
         User::create([
-            'name' => 'Moderator',
-            'email' => 'moderator@test.com',
+            'name' => 'Juanito Mozo',
+            'email' => 'juanito.mozo.iv@gmail.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password'),
-        ])->assignRole('Admin');
+        ])->assignRole('Superadmin');
         User::create([
-            'name' => 'Class Representative',
-            'email' => 'class@test.com',
+            'name' => 'Classhub Test Admin',
+            'email' => 'classhubrep@purelymail.com',
+            'email_verified_at' => now(),
+            'password' => Hash::make('password'),
+        ])->assignRole('Superadmin');
+        User::create([
+            'name' => 'Vicky Mozo',
+            'email' => 'juanito.cet@gmail.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password'),
         ])->assignRole('Class Representative');
         User::create([
-            'name' => 'Peter Marticio',
-            'email' => 'petermarticio@test.com',
+            'name' => 'Elijah Marticio',
+            'email' => 'seafire266@gmail.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password'),
         ])->assignRole('Class Representative');
         User::create([
             'name' => 'Luis Valdez',
-            'email' => 'luisvaldez@test.com',
+            'email' => 'valdezjose0919@gmail.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password'),
         ])->assignRole('Class Representative');
         User::create([
             'name' => 'Dona Roldan',
-            'email' => 'donaroldan@test.com',
-            'email_verified_at' => now(),
-            'password' => Hash::make('password'),
-        ])->assignRole('Class Representative');
-        User::create([
-            'name' => 'Juanito Mozo',
-            'email' => 'juanitomozo@test.com',
+            'email' => 'donaroldan6@gmail.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password'),
         ])->assignRole('Class Representative');

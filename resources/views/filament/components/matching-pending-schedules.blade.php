@@ -31,15 +31,27 @@
                         @endif
                     </p>
                 </div>
-                <x-filament::button
-                    :color="$isOtherRoom ? 'warning' : 'success'"
-                    size="sm"
-                    tag="button"
-                    type="button"
-                    wire:click="approveMatchingSchedule({{ $id }})"
-                >
-                    Approve
-                </x-filament::button>
+                <div class="flex items-center gap-2">
+                    <x-filament::button
+                        :color="$isOtherRoom ? 'warning' : 'success'"
+                        size="sm"
+                        tag="button"
+                        type="button"
+                        wire:click="approveMatchingSchedule({{ $id }})"
+                    >
+                        Approve
+                    </x-filament::button>
+                    <x-filament::button
+                        color="danger"
+                        size="sm"
+                        tag="button"
+                        type="button"
+                        wire:click="rejectMatchingSchedule({{ $id }})"
+                        wire:confirm="Are you sure you want to reject this schedule request?"
+                    >
+                        Reject
+                    </x-filament::button>
+                </div>
             </div>
         </x-filament::section>
     @endforeach

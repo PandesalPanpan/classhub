@@ -8,6 +8,7 @@ use App\Filament\Pages\Schemas\RequestScheduleForm;
 use App\Filament\Resources\Schedules\Schemas\ScheduleForm;
 use App\Models\Room;
 use App\Models\Schedule;
+use App\Models\Setting;
 use App\ScheduleStatus;
 use App\ScheduleType;
 use App\Services\EmailNotificationService;
@@ -33,6 +34,8 @@ use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
 
 class CalendarWidget extends FullCalendarWidget
 {
+    protected static ?int $sort = 10;
+
     public Model|string|null $model = Schedule::class;
 
     public ?string $filterRoom = null;
@@ -150,23 +153,36 @@ class CalendarWidget extends FullCalendarWidget
                         unset($data['duration_minutes']);
                     }
 
-                    // Overlap validation (Pending + Approved in same room)
+                    $this->ensurePastScheduleAllowed($data);
+
+                    // Overlap validation.
+                    // App panel request flow should only block when an approved schedule exists,
+                    // while admin flow keeps stricter overlap checks.
                     if (! empty($data['room_id']) && isset($data['start_time'], $data['end_time'])) {
+                        $blockingStatuses = $this->isAppPanel()
+                            ? [ScheduleStatus::Approved]
+                            : [ScheduleStatus::Approved, ScheduleStatus::Pending];
+
                         if (
                             ScheduleOverlapChecker::hasOverlap(
                                 $data['room_id'],
                                 Carbon::parse($data['start_time']),
-                                Carbon::parse($data['end_time'])
+                                Carbon::parse($data['end_time']),
+                                $blockingStatuses
                             )
                         ) {
+                            $conflictMessage = $this->isAppPanel()
+                                ? 'This room already has an approved schedule during the selected time.'
+                                : 'This room already has a schedule during the selected time.';
+
                             Notification::make()
                                 ->title('Schedule conflict')
-                                ->body('This room already has a schedule during the selected time.')
+                                ->body($conflictMessage)
                                 ->danger()
                                 ->send();
 
                             throw ValidationException::withMessages([
-                                'start_time' => 'This room already has a schedule during the selected time.',
+                                'start_time' => $conflictMessage,
                             ]);
                         }
                     }
@@ -174,6 +190,8 @@ class CalendarWidget extends FullCalendarWidget
                     return $data;
                 })
                 ->action(function (array $data, $livewire) {
+                    $this->ensurePastScheduleAllowed($data);
+
                     unset($data['duration_minutes']);
 
                     // Admin panel schedules are auto-approved, app panel creates pending
@@ -902,5 +920,64 @@ class CalendarWidget extends FullCalendarWidget
 
         $this->refreshRecords();
         $this->unmountAction();
+    }
+
+    public function rejectMatchingSchedule(int $id): void
+    {
+        if (! Auth::check() || ! Auth::user()->can('Update:Schedule')) {
+            return;
+        }
+
+        $schedule = Schedule::query()->where('id', $id)->first();
+        if (! $schedule || $schedule->status !== ScheduleStatus::Pending) {
+            Notification::make()
+                ->title('Cannot reject')
+                ->body('Schedule not found or not pending.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $schedule->reject();
+
+        $this->matchingPendingSchedules = collect($this->matchingPendingSchedules)
+            ->filter(fn ($s) => (is_object($s) ? $s->id : ($s['id'] ?? null)) !== $id)
+            ->values();
+
+        Notification::make()
+            ->title('Schedule rejected')
+            ->body('The pending request has been rejected.')
+            ->success()
+            ->send();
+
+        $this->refreshRecords();
+    }
+
+    private function ensurePastScheduleAllowed(array $data): void
+    {
+        if ($this->isAdminPanel()) {
+            return;
+        }
+
+        if ((bool) Setting::get('allow_past_schedule_requests')) {
+            return;
+        }
+
+        if (empty($data['start_time'])) {
+            return;
+        }
+
+        if (Carbon::parse($data['start_time'])->isPast()) {
+            Notification::make()
+                ->title('Past schedule requests are disabled')
+                ->body('Past schedule requests are currently disabled by the administrator.')
+                ->danger()
+                ->send();
+
+            throw ValidationException::withMessages([
+                'start_time' => 'Scheduling in the past is not allowed.',
+            ]);
+        }
     }
 }
