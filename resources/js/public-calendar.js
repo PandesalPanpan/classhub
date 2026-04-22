@@ -39,6 +39,12 @@ function formatEventTimeRange(start, end) {
     return `${fmt(start)}-${fmt(end)}`;
 }
 
+function getScrollTimeNearNow() {
+    const now = new Date();
+    const scrollHour = Math.max(7, now.getHours() - 1);
+    return `${String(scrollHour).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
+}
+
 function withHashedColors(evts) {
     return (evts || []).map((evt) => {
         // Template schedules are "soft" schedules that can be overridden
@@ -99,7 +105,9 @@ window.initClassroomCalendar = function (rooms, events) {
         slotMaxTime: '22:00:00',
         slotDuration: '00:30:00',
         slotLabelInterval: "00:30",
-        height: 'auto',
+        height: '85vh',
+        scrollTime: getScrollTimeNearNow(),
+        scrollTimeReset: false,
         editable: false,
         selectable: false,
         selectMirror: true,
@@ -196,6 +204,15 @@ window.initClassroomCalendar = function (rooms, events) {
     });
 
     calendar.render();
-    console.log(events);
+
+    // Keep kiosk displays positioned near current time without user interaction.
+    const scrollToNowInterval = setInterval(() => {
+        calendar.scrollToTime(getScrollTimeNearNow());
+    }, 5 * 60 * 1000);
+
+    window.addEventListener('beforeunload', () => {
+        clearInterval(scrollToNowInterval);
+    }, { once: true });
+
     return calendar;
 };
