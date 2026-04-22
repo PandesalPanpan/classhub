@@ -8,17 +8,19 @@ use App\Filament\Pages\Schemas\RequestScheduleForm;
 use App\Filament\Resources\Schedules\Schemas\ScheduleForm;
 use App\Models\Room;
 use App\Models\Schedule;
+use App\Models\Setting;
 use App\ScheduleStatus;
 use App\ScheduleType;
+use App\Services\EmailNotificationService;
 use App\Services\ScheduleNotificationService;
 use App\Services\ScheduleOverlapChecker;
 use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
-use Filament\Support\Exceptions\Halt;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
+use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -32,6 +34,8 @@ use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
 
 class CalendarWidget extends FullCalendarWidget
 {
+    protected static ?int $sort = 10;
+
     public Model|string|null $model = Schedule::class;
 
     public ?string $filterRoom = null;
@@ -63,12 +67,15 @@ class CalendarWidget extends FullCalendarWidget
                 ->mountUsing(function ($form, array $arguments) {
                     $this->matchingPendingSchedules = collect();
 
+                    // Initialize fillData with defaults
+                    $fillData = [
+                        'duration_minutes' => 60, // Default to 60 minutes
+                    ];
+
                     // Pre-fill start_time and end_time when a date selection is made
                     if (isset($arguments['type']) && $arguments['type'] === 'select') {
-                        $fillData = [
-                            'start_time' => $arguments['start'] ?? null,
-                            'end_time' => $arguments['end'] ?? null,
-                        ];
+                        $fillData['start_time'] = $arguments['start'] ?? null;
+                        $fillData['end_time'] = $arguments['end'] ?? null;
 
                         // If start_time and end_time is set, calculate duration_minutes
                         // Round to nearest 30 min to match RequestScheduleForm options (30–810)
@@ -106,26 +113,37 @@ class CalendarWidget extends FullCalendarWidget
                         if ($roomId) {
                             $fillData['room_id'] = $roomId;
                         }
-
-                        $form->fill($fillData);
-
-                        // Find pending schedules matching this time (any room) so admin can approve them from the modal.
-                        // Do not show any if the selected room already has an approved schedule at this slot.
-                        if (isset($fillData['start_time'], $fillData['end_time'])) {
-                            $roomId = $fillData['room_id'] ?? null;
-                            $hasApprovedInSlot = $roomId !== null && ScheduleOverlapChecker::hasOverlap(
-                                (int) $roomId,
-                                Carbon::parse($fillData['start_time']),
-                                Carbon::parse($fillData['end_time']),
-                                [ScheduleStatus::Approved]
-                            );
-                            $this->matchingPendingSchedules = $hasApprovedInSlot
-                                ? collect()
-                                : Schedule::query()
-                                    ->pendingForTimeSlot($fillData['start_time'], $fillData['end_time'])
-                                    ->with(['requester', 'room'])
-                                    ->get();
+                    } else {
+                        // When clicking the header button directly (no calendar slot selected),
+                        // still apply the room filter if set
+                        if ($this->filterRoom) {
+                            $roomNumber = str_replace('room-', '', $this->filterRoom);
+                            $room = Room::where('room_number', $roomNumber)->first();
+                            if ($room) {
+                                $fillData['room_id'] = $room->id;
+                            }
                         }
+                    }
+
+                    // Always fill the form with initialized data
+                    $form->fill($fillData);
+
+                    // Find pending schedules matching this time (any room) so admin can approve them from the modal.
+                    // Do not show any if the selected room already has an approved schedule at this slot.
+                    if (isset($fillData['start_time'], $fillData['end_time'])) {
+                        $roomId = $fillData['room_id'] ?? null;
+                        $hasApprovedInSlot = $roomId !== null && ScheduleOverlapChecker::hasOverlap(
+                            (int) $roomId,
+                            Carbon::parse($fillData['start_time']),
+                            Carbon::parse($fillData['end_time']),
+                            [ScheduleStatus::Approved]
+                        );
+                        $this->matchingPendingSchedules = $hasApprovedInSlot
+                            ? collect()
+                            : Schedule::query()
+                                ->pendingForTimeSlot($fillData['start_time'], $fillData['end_time'])
+                                ->with(['requester', 'room'])
+                                ->get();
                     }
                 })
                 ->mutateDataUsing(function (array $data): array {
@@ -149,23 +167,36 @@ class CalendarWidget extends FullCalendarWidget
                         unset($data['duration_minutes']);
                     }
 
-                    // Overlap validation (Pending + Approved in same room)
+                    $this->ensurePastScheduleAllowed($data);
+
+                    // Overlap validation.
+                    // App panel request flow should only block when an approved schedule exists,
+                    // while admin flow keeps stricter overlap checks.
                     if (! empty($data['room_id']) && isset($data['start_time'], $data['end_time'])) {
+                        $blockingStatuses = $this->isAppPanel()
+                            ? [ScheduleStatus::Approved]
+                            : [ScheduleStatus::Approved, ScheduleStatus::Pending];
+
                         if (
                             ScheduleOverlapChecker::hasOverlap(
                                 $data['room_id'],
                                 Carbon::parse($data['start_time']),
-                                Carbon::parse($data['end_time'])
+                                Carbon::parse($data['end_time']),
+                                $blockingStatuses
                             )
                         ) {
+                            $conflictMessage = $this->isAppPanel()
+                                ? 'This room already has an approved schedule during the selected time.'
+                                : 'This room already has a schedule during the selected time.';
+
                             Notification::make()
                                 ->title('Schedule conflict')
-                                ->body('This room already has a schedule during the selected time.')
+                                ->body($conflictMessage)
                                 ->danger()
                                 ->send();
 
                             throw ValidationException::withMessages([
-                                'start_time' => 'This room already has a schedule during the selected time.',
+                                'start_time' => $conflictMessage,
                             ]);
                         }
                     }
@@ -173,6 +204,8 @@ class CalendarWidget extends FullCalendarWidget
                     return $data;
                 })
                 ->action(function (array $data, $livewire) {
+                    $this->ensurePastScheduleAllowed($data);
+
                     unset($data['duration_minutes']);
 
                     // Admin panel schedules are auto-approved, app panel creates pending
@@ -188,6 +221,7 @@ class CalendarWidget extends FullCalendarWidget
                     // Send notification if a pending schedule was created (app panel)
                     if (! $this->isAdminPanel() && $schedule->status === ScheduleStatus::Pending) {
                         ScheduleNotificationService::notifyPendingCreated($schedule);
+                        EmailNotificationService::sendScheduleCreatedConfirmation($schedule);
                     }
 
                     // Refresh the calendar to show the newly created schedule
@@ -299,13 +333,13 @@ class CalendarWidget extends FullCalendarWidget
                     $this->findAvailableRoomsResults = $results;
 
                     $idx = array_key_last($this->mountedActions);
-                    if ($idx !== null && isset($this->cachedSchemas['mountedActionSchema' . $idx])) {
-                        unset($this->cachedSchemas['mountedActionSchema' . $idx]);
+                    if ($idx !== null && isset($this->cachedSchemas['mountedActionSchema'.$idx])) {
+                        unset($this->cachedSchemas['mountedActionSchema'.$idx]);
                     }
 
                     throw new Halt;
                 }),
-                Action::make('showValidPendingSchedules')
+            Action::make('showValidPendingSchedules')
                 ->label(fn () => $this->showValidPendingSchedules ? 'Hide valid pending' : 'Show valid pending')
                 ->icon(fn () => $this->showValidPendingSchedules ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
                 ->color($this->showValidPendingSchedules ? 'primary' : 'gray')
@@ -804,6 +838,9 @@ class CalendarWidget extends FullCalendarWidget
 
                 ScheduleNotificationService::notifyOverrideRequested($override);
 
+                // Send confirmation email to requester
+                EmailNotificationService::sendScheduleOverridePendingConfirmation($override);
+
                 Notification::make()
                     ->title('Override requested')
                     ->body('Your prioritized request has been submitted. Admins will review it.')
@@ -897,5 +934,64 @@ class CalendarWidget extends FullCalendarWidget
 
         $this->refreshRecords();
         $this->unmountAction();
+    }
+
+    public function rejectMatchingSchedule(int $id): void
+    {
+        if (! Auth::check() || ! Auth::user()->can('Update:Schedule')) {
+            return;
+        }
+
+        $schedule = Schedule::query()->where('id', $id)->first();
+        if (! $schedule || $schedule->status !== ScheduleStatus::Pending) {
+            Notification::make()
+                ->title('Cannot reject')
+                ->body('Schedule not found or not pending.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $schedule->reject();
+
+        $this->matchingPendingSchedules = collect($this->matchingPendingSchedules)
+            ->filter(fn ($s) => (is_object($s) ? $s->id : ($s['id'] ?? null)) !== $id)
+            ->values();
+
+        Notification::make()
+            ->title('Schedule rejected')
+            ->body('The pending request has been rejected.')
+            ->success()
+            ->send();
+
+        $this->refreshRecords();
+    }
+
+    private function ensurePastScheduleAllowed(array $data): void
+    {
+        if ($this->isAdminPanel()) {
+            return;
+        }
+
+        if ((bool) Setting::get('allow_past_schedule_requests')) {
+            return;
+        }
+
+        if (empty($data['start_time'])) {
+            return;
+        }
+
+        if (Carbon::parse($data['start_time'])->isPast()) {
+            Notification::make()
+                ->title('Past schedule requests are disabled')
+                ->body('Past schedule requests are currently disabled by the administrator.')
+                ->danger()
+                ->send();
+
+            throw ValidationException::withMessages([
+                'start_time' => 'Scheduling in the past is not allowed.',
+            ]);
+        }
     }
 }

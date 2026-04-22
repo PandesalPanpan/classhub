@@ -11,7 +11,6 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 
 class SchedulesActions
 {
@@ -97,12 +96,14 @@ class SchedulesActions
                 ])
                 ->visible(fn (Schedule $record) => $record->status === ScheduleStatus::Pending)
                 ->action(function (Schedule $record, array $data, $livewire) {
+                    // Update room_id and remarks first
                     $record->update([
                         'room_id' => $data['room_id'],
-                        'status' => ScheduleStatus::Approved,
-                        'approver_id' => Auth::id(),
                         'remarks' => $data['remarks'],
                     ]);
+
+                    // Call the model's approve() method which triggers email
+                    $record->approve();
 
                     $record->refresh();
 
@@ -191,17 +192,18 @@ class SchedulesActions
                 ])
                 ->visible(fn (Schedule $record) => $record->status === ScheduleStatus::Pending)
                 ->action(function (Schedule $record, array $data, $livewire) {
-                    $updateData = [
-                        'status' => ScheduleStatus::Rejected,
-                        'approver_id' => Auth::id(),
+                    // Update remarks first before calling reject()
+                    $record->update([
                         'remarks' => $data['remarks'],
-                    ];
+                    ]);
 
+                    // Set room_id if provided
                     if (isset($data['room_id'])) {
-                        $updateData['room_id'] = $data['room_id'];
+                        $record->room_id = $data['room_id'];
                     }
 
-                    $record->update($updateData);
+                    // Call the model's reject() method which triggers email
+                    $record->reject();
 
                     if ($livewire) {
                         $livewire->dispatch('filament-fullcalendar--refresh');

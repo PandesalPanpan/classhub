@@ -34,8 +34,12 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call([
-            ScheduleSeeder::class,
+            SettingsSeeder::class,
         ]);
+
+        // $this->call([
+        //     ScheduleSeeder::class,
+        // ]);
 
     }
 }

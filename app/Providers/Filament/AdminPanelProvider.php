@@ -3,9 +3,11 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\BulkSchedule;
+use App\Filament\Pages\ManageSettings;
 use App\Filament\Resources\Rooms\RoomResource;
 use App\Filament\Resources\Schedules\ScheduleResource;
 use App\Filament\Resources\Users\UserResource;
+use App\Filament\Widgets\IotStatusWidget;
 use App\Livewire\CalendarWidget;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use Filament\Http\Middleware\Authenticate;
@@ -17,7 +19,6 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
-use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -25,6 +26,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
+use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -40,11 +42,13 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
+            ->viteTheme('resources/css/filament/admin/theme.css')
             // ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             // ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
-                BulkSchedule::class
+                BulkSchedule::class,
+                ManageSettings::class,
             ])
             ->resources([
                 ScheduleResource::class,
@@ -54,7 +58,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 AccountWidget::class,
-                FilamentInfoWidget::class,
+                IotStatusWidget::class,
                 CalendarWidget::class,
             ])
             ->middleware([
@@ -89,6 +93,10 @@ class AdminPanelProvider extends PanelProvider
                             'initialView' => 'timeGridWeek',
                         ]),
                     FilamentShieldPlugin::make(),
+                    AuthUIEnhancerPlugin::make()
+                        ->formPanelPosition('right')
+                        ->formPanelWidth('40%')
+                        ->emptyPanelBackgroundImageUrl('https://i.imgur.com/2xQUt6D.jpeg')
                 ],
             )
             ->databaseNotifications()

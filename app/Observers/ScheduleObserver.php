@@ -2,8 +2,6 @@
 
 namespace App\Observers;
 
-use App\Jobs\VerifyScheduleKeyUsageJob;
-use App\KeyStatus;
 use App\Models\Schedule;
 use App\ScheduleStatus;
 use App\ScheduleType;
@@ -31,17 +29,11 @@ class ScheduleObserver
             return;
         }
 
-        $schedule->load('room.key');
-        if ($schedule->room?->key?->status === KeyStatus::Disabled) {
-            return;
-        }
-
-        $runAt = $schedule->getFortyPercentDurationPoint();
-        if (! $runAt->isFuture()) {
-            return;
-        }
-
-        VerifyScheduleKeyUsageJob::dispatch($schedule)->delay($runAt);
+        // Key jobs are now dispatched centrally via Schedule::dispatchKeyJobs()
+        // which is called from Schedule::approve(). This observer just ensures
+        // that schedules approved through non-model paths (e.g. bulk actions)
+        // still get their jobs.
+        $schedule->dispatchKeyJobs();
     }
 
     /**

@@ -3,10 +3,12 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Pages\Schemas\RequestScheduleForm;
+use App\Models\Setting;
 use App\Filament\Resources\Schedules\Tables\ScheduleColumns;
 use App\Filament\Resources\Schedules\Tables\ScheduleTableFilters;
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use App\Services\EmailNotificationService;
 use App\Services\ScheduleNotificationService;
 use App\Services\ScheduleOverlapChecker;
 use Carbon\Carbon;
@@ -100,6 +102,8 @@ class RequestSchedule extends Page implements HasTable
                             ->modalCancelActionLabel('Close'),
                     ])
                     ->mutateDataUsing(function (array $data): array {
+                        $this->ensurePastScheduleAllowed($data);
+
                         $data['requester_id'] = Auth::id();
 
                         if (isset($data['start_time']) && isset($data['duration_minutes'])) {
@@ -110,24 +114,29 @@ class RequestSchedule extends Page implements HasTable
                         return $data;
                     })
                     ->action(function (array $data, $livewire) {
+                        $this->ensurePastScheduleAllowed($data);
+
                         unset($data['duration_minutes']);
 
                         // Server-side overlap validation (Pending + Approved in same room)
                         // Only check for conflicts when a room has been selected.
+                        // Requesters can submit multiple pending requests for the same slot;
+                        // only approved schedules should block new requests.
                         if (! empty($data['room_id'])) {
                             if (ScheduleOverlapChecker::hasOverlap(
                                 $data['room_id'],
                                 Carbon::parse($data['start_time']),
-                                Carbon::parse($data['end_time'])
+                                Carbon::parse($data['end_time']),
+                                [ScheduleStatus::Approved]
                             )) {
                                 Notification::make()
                                     ->title('Schedule conflict')
-                                    ->body('This room already has a schedule during the selected time.')
+                                    ->body('This room already has an approved schedule during the selected time.')
                                     ->danger()
                                     ->send();
 
                                 throw ValidationException::withMessages([
-                                    'start_time' => 'This room already has a schedule during the selected time.',
+                                    'start_time' => 'This room already has an approved schedule during the selected time.',
                                 ]);
                             }
                         }
@@ -136,6 +145,9 @@ class RequestSchedule extends Page implements HasTable
 
                         if ($schedule && $schedule->status === ScheduleStatus::Pending) {
                             ScheduleNotificationService::notifyPendingCreated($schedule);
+
+                            // Send confirmation email to requester
+                            EmailNotificationService::sendScheduleCreatedConfirmation($schedule);
                         }
 
                         if ($livewire) {
@@ -148,5 +160,28 @@ class RequestSchedule extends Page implements HasTable
     public function getTableQuery(): Builder
     {
         return Schedule::query()->where('requester_id', Auth::id());
+    }
+
+    private function ensurePastScheduleAllowed(array $data): void
+    {
+        if ((bool) Setting::get('allow_past_schedule_requests')) {
+            return;
+        }
+
+        if (empty($data['start_time'])) {
+            return;
+        }
+
+        if (Carbon::parse($data['start_time'])->isPast()) {
+            Notification::make()
+                ->title('Past schedule requests are disabled')
+                ->body('Past schedule requests are currently disabled by the administrator.')
+                ->danger()
+                ->send();
+
+            throw ValidationException::withMessages([
+                'start_time' => 'Scheduling in the past is not allowed.',
+            ]);
+        }
     }
 }

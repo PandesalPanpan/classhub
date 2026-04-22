@@ -2,17 +2,24 @@
 
 namespace App\Models;
 
+use App\Jobs\VerifyScheduleKeyUsageJob;
 use App\ScheduleStatus;
 use App\ScheduleType;
+use App\Services\EmailNotificationService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 
 class Schedule extends Model
 {
+    use HasFactory;
+
     /**
      * Scope: pending schedules that match the exact room and time slot.
      */
@@ -56,6 +63,61 @@ class Schedule extends Model
             'status' => ScheduleStatus::Approved,
             'approver_id' => Auth::id(),
         ]);
+
+        // Look up next approved schedule in the same room within the handover window
+        // so the approval email can include a handover hint immediately.
+        $nextSchedule = $this->findNextScheduleInHandoverWindow();
+
+        // Send email notification to requester
+        EmailNotificationService::sendScheduleApproved($this, $nextSchedule);
+
+        // Dispatch key-related jobs.
+        // The observer will also call this for ScheduleType::Request, so we skip
+        // here and let the observer handle it to avoid double dispatching.
+        // However, for non-Request types (e.g. admin-created schedules), we dispatch now.
+        if (! in_array($this->type, [ScheduleType::Request], true)) {
+            $this->dispatchKeyJobs();
+        }
+    }
+
+    /**
+     * Find the next approved schedule in the same room that starts within the handover window.
+     * Uses >= so back-to-back slots (A ends 12:00, B starts 12:00) are eligible.
+     */
+    public function findNextScheduleInHandoverWindow(): ?Schedule
+    {
+        $windowMinutes = (int) Setting::get('handover_eligibility_window_minutes');
+        $windowEnd = $this->end_time->copy()->addMinutes($windowMinutes);
+
+        return Schedule::query()
+            ->where('room_id', $this->room_id)
+            ->where('id', '!=', $this->id)
+            ->where('status', ScheduleStatus::Approved)
+            ->where('start_time', '>=', $this->end_time)
+            ->where('start_time', '<=', $windowEnd)
+            ->orderBy('start_time')
+            ->first();
+    }
+
+    /**
+     * Dispatch key-related jobs for this schedule after approval.
+     */
+    public function dispatchKeyJobs(): void
+    {
+        $this->load('room.key');
+        if (! $this->room?->key) {
+            return;
+        }
+
+        // Verify key usage (40% into schedule)
+        $runAt = $this->getFortyPercentDurationPoint();
+        if ($runAt->isFuture()) {
+            VerifyScheduleKeyUsageJob::dispatch($this)->delay($runAt);
+
+            return;
+        }
+
+        VerifyScheduleKeyUsageJob::dispatch($this);
     }
 
     public function reject(): void
@@ -64,6 +126,9 @@ class Schedule extends Model
             'status' => ScheduleStatus::Rejected,
             'approver_id' => Auth::id(),
         ]);
+
+        // Send email notification to requester
+        EmailNotificationService::sendScheduleRejected($this);
     }
 
     public function cancel(): void
@@ -71,6 +136,9 @@ class Schedule extends Model
         $this->update([
             'status' => ScheduleStatus::Cancelled,
         ]);
+
+        // Send cancellation confirmation email to requester
+        EmailNotificationService::sendScheduleCancelledConfirmation($this);
     }
 
     public function expire(): void
@@ -78,6 +146,9 @@ class Schedule extends Model
         $this->update([
             'status' => ScheduleStatus::Expired,
         ]);
+
+        // Send expired schedule email to requester
+        EmailNotificationService::sendScheduleExpired($this);
     }
 
     /**
@@ -87,22 +158,46 @@ class Schedule extends Model
     public function getFortyPercentDurationPoint(): \Illuminate\Support\Carbon
     {
         $durationInSeconds = $this->start_time->diffInSeconds($this->end_time);
-        $delayInSeconds = (int) ($durationInSeconds * 0.4);
+        $keyUsageCheckPercent = (float) Setting::get('key_usage_check_percent');
+        $delayInSeconds = (int) ($durationInSeconds * $keyUsageCheckPercent);
 
         return $this->start_time->copy()->addSeconds($delayInSeconds);
     }
 
     /**
-     * When to run the post-class check (key return / handover). Default: end_time + 10 minutes.
+     * When to run the post-class check (key return / handover).
      */
-    public function getPostClassCheckRunAt(int $minutesAfterEnd = 10): \Illuminate\Support\Carbon
+    public function getPostClassCheckRunAt(?int $minutesAfterEnd = null): \Illuminate\Support\Carbon
     {
+        $minutesAfterEnd ??= (int) Setting::get('grace_period_minutes');
+
         return $this->end_time->copy()->addMinutes($minutesAfterEnd);
     }
 
     public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class, 'room_id', 'id');
+    }
+
+    public function keyEvents(): HasMany
+    {
+        return $this->hasMany(KeyEvent::class)->orderBy('occurred_at');
+    }
+
+    /**
+     * The handover record where this schedule is the outgoing (previous) party.
+     */
+    public function handoverAsPrevious(): HasOne
+    {
+        return $this->hasOne(ScheduleHandover::class, 'previous_schedule_id');
+    }
+
+    /**
+     * The handover record where this schedule is the incoming (next) party.
+     */
+    public function handoverAsNext(): HasOne
+    {
+        return $this->hasOne(ScheduleHandover::class, 'next_schedule_id');
     }
 
     public function requester(): BelongsTo
