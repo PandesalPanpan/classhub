@@ -703,12 +703,18 @@ class CalendarWidget extends FullCalendarWidget
         $editAction = EditAction::make()
             ->authorize(function (Schedule $record) {
                 return Auth::check() && Auth::user()->can('Update:Schedule');
+            })
+            ->hidden(function (Schedule $record) {
+                return !Auth::check() || !Auth::user()->can('Update:Schedule');
             });
         $actions[] = $editAction;
 
         $deleteAction = DeleteAction::make()
             ->authorize(function (Schedule $record) {
                 return Auth::check() && Auth::user()->can('Delete:Schedule');
+            })
+            ->hidden(function (Schedule $record) {
+                return !Auth::check() || !Auth::user()->can('Delete:Schedule');
             });
         $actions[] = $deleteAction;
 
