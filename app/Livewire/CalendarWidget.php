@@ -67,12 +67,15 @@ class CalendarWidget extends FullCalendarWidget
                 ->mountUsing(function ($form, array $arguments) {
                     $this->matchingPendingSchedules = collect();
 
+                    // Initialize fillData with defaults
+                    $fillData = [
+                        'duration_minutes' => 60, // Default to 60 minutes
+                    ];
+
                     // Pre-fill start_time and end_time when a date selection is made
                     if (isset($arguments['type']) && $arguments['type'] === 'select') {
-                        $fillData = [
-                            'start_time' => $arguments['start'] ?? null,
-                            'end_time' => $arguments['end'] ?? null,
-                        ];
+                        $fillData['start_time'] = $arguments['start'] ?? null;
+                        $fillData['end_time'] = $arguments['end'] ?? null;
 
                         // If start_time and end_time is set, calculate duration_minutes
                         // Round to nearest 30 min to match RequestScheduleForm options (30–810)
@@ -110,26 +113,37 @@ class CalendarWidget extends FullCalendarWidget
                         if ($roomId) {
                             $fillData['room_id'] = $roomId;
                         }
-
-                        $form->fill($fillData);
-
-                        // Find pending schedules matching this time (any room) so admin can approve them from the modal.
-                        // Do not show any if the selected room already has an approved schedule at this slot.
-                        if (isset($fillData['start_time'], $fillData['end_time'])) {
-                            $roomId = $fillData['room_id'] ?? null;
-                            $hasApprovedInSlot = $roomId !== null && ScheduleOverlapChecker::hasOverlap(
-                                (int) $roomId,
-                                Carbon::parse($fillData['start_time']),
-                                Carbon::parse($fillData['end_time']),
-                                [ScheduleStatus::Approved]
-                            );
-                            $this->matchingPendingSchedules = $hasApprovedInSlot
-                                ? collect()
-                                : Schedule::query()
-                                    ->pendingForTimeSlot($fillData['start_time'], $fillData['end_time'])
-                                    ->with(['requester', 'room'])
-                                    ->get();
+                    } else {
+                        // When clicking the header button directly (no calendar slot selected),
+                        // still apply the room filter if set
+                        if ($this->filterRoom) {
+                            $roomNumber = str_replace('room-', '', $this->filterRoom);
+                            $room = Room::where('room_number', $roomNumber)->first();
+                            if ($room) {
+                                $fillData['room_id'] = $room->id;
+                            }
                         }
+                    }
+
+                    // Always fill the form with initialized data
+                    $form->fill($fillData);
+
+                    // Find pending schedules matching this time (any room) so admin can approve them from the modal.
+                    // Do not show any if the selected room already has an approved schedule at this slot.
+                    if (isset($fillData['start_time'], $fillData['end_time'])) {
+                        $roomId = $fillData['room_id'] ?? null;
+                        $hasApprovedInSlot = $roomId !== null && ScheduleOverlapChecker::hasOverlap(
+                            (int) $roomId,
+                            Carbon::parse($fillData['start_time']),
+                            Carbon::parse($fillData['end_time']),
+                            [ScheduleStatus::Approved]
+                        );
+                        $this->matchingPendingSchedules = $hasApprovedInSlot
+                            ? collect()
+                            : Schedule::query()
+                                ->pendingForTimeSlot($fillData['start_time'], $fillData['end_time'])
+                                ->with(['requester', 'room'])
+                                ->get();
                     }
                 })
                 ->mutateDataUsing(function (array $data): array {
