@@ -9,6 +9,7 @@ use App\Models\Key;
 use App\Models\KeyEvent;
 use App\Models\Room;
 use App\Models\Schedule;
+use App\Models\ScheduleHandover;
 use App\ScheduleStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
@@ -90,6 +91,59 @@ class VerifyScheduleKeyUsageJobTest extends TestCase
         (new VerifyScheduleKeyUsageJob($schedule))->handle();
 
         Queue::assertPushed(EndOfClassJob::class, 1);
+    }
+
+    public function test_defers_when_pending_handover_exists_for_schedule_as_next(): void
+    {
+        Mail::fake();
+        Queue::fake();
+
+        [$schedule] = $this->makeApprovedScheduleWithKey();
+        $previous = Schedule::factory()->approved()->create([
+            'room_id' => $schedule->room_id,
+            'start_time' => $schedule->start_time->copy()->subHour(),
+            'end_time' => $schedule->start_time,
+        ]);
+
+        ScheduleHandover::factory()->create([
+            'previous_schedule_id' => $previous->id,
+            'next_schedule_id' => $schedule->id,
+            'resolution_deadline_at' => now()->addMinutes(10),
+            'resolution_finalized_at' => null,
+        ]);
+
+        (new VerifyScheduleKeyUsageJob($schedule))->handle();
+
+        $this->assertSame(ScheduleStatus::Approved, $schedule->fresh()->status);
+        Queue::assertPushed(VerifyScheduleKeyUsageJob::class, function (VerifyScheduleKeyUsageJob $job) use ($schedule) {
+            return $job->schedule->id === $schedule->id
+                && $job->retryCount === 1;
+        });
+    }
+
+    public function test_expires_after_max_retries_even_when_handover_is_pending(): void
+    {
+        Mail::fake();
+        Queue::fake();
+
+        [$schedule] = $this->makeApprovedScheduleWithKey();
+        $previous = Schedule::factory()->approved()->create([
+            'room_id' => $schedule->room_id,
+            'start_time' => $schedule->start_time->copy()->subHour(),
+            'end_time' => $schedule->start_time,
+        ]);
+
+        ScheduleHandover::factory()->create([
+            'previous_schedule_id' => $previous->id,
+            'next_schedule_id' => $schedule->id,
+            'resolution_deadline_at' => now()->addMinutes(10),
+            'resolution_finalized_at' => null,
+        ]);
+
+        (new VerifyScheduleKeyUsageJob($schedule, VerifyScheduleKeyUsageJob::MAX_HANDOVER_DEFER_RETRIES))->handle();
+
+        $this->assertSame(ScheduleStatus::Expired, $schedule->fresh()->status);
+        Queue::assertNothingPushed();
     }
 
     private function makeApprovedScheduleWithKey(): array

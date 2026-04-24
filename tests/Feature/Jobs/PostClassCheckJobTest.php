@@ -88,6 +88,30 @@ class PostClassCheckJobTest extends TestCase
         ]);
     }
 
+    public function test_skips_when_handover_already_finalized_via_early_confirmation(): void
+    {
+        Mail::fake();
+
+        [$schedule, $key] = $this->makeEndedScheduleWithKey();
+
+        $next = Schedule::factory()->approved()->create([
+            'room_id' => $schedule->room_id,
+            'start_time' => now()->addMinutes(10),
+            'end_time' => now()->addHours(2),
+        ]);
+
+        ScheduleHandover::factory()->bothConfirmed()->create([
+            'previous_schedule_id' => $schedule->id,
+            'next_schedule_id' => $next->id,
+            'resolution_finalized_at' => now()->subMinute(),
+        ]);
+
+        (new PostClassCheckJob($schedule))->handle();
+
+        $this->assertSame(KeyStatus::Used, $key->fresh()->status);
+        Mail::assertNothingQueued();
+    }
+
     public function test_marks_key_missing_when_handover_not_confirmed(): void
     {
         Mail::fake();

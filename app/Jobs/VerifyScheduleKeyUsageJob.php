@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\KeyStatus;
 use App\Models\KeyEvent;
 use App\Models\Schedule;
+use App\Models\ScheduleHandover;
 use App\ScheduleStatus;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,13 +13,17 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class VerifyScheduleKeyUsageJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public const MAX_HANDOVER_DEFER_RETRIES = 3;
+
     public function __construct(
-        public Schedule $schedule
+        public Schedule $schedule,
+        public int $retryCount = 0
     ) {}
 
     public function middleware(): array
@@ -66,6 +71,38 @@ class VerifyScheduleKeyUsageJob implements ShouldQueue
             }
 
             return;
+        }
+
+        $pendingHandover = ScheduleHandover::where('next_schedule_id', $this->schedule->id)
+            ->whereNull('resolution_finalized_at')
+            ->first();
+
+        if ($pendingHandover) {
+            if ($this->retryCount < self::MAX_HANDOVER_DEFER_RETRIES) {
+                $retryAt = $pendingHandover->resolution_deadline_at?->copy()->addMinute() ?? now()->addMinute();
+
+                Log::info('VerifyScheduleKeyUsageJob: Pending handover found, deferring check', [
+                    'schedule_id' => $this->schedule->id,
+                    'handover_id' => $pendingHandover->id,
+                    'retry_count' => $this->retryCount,
+                    'next_retry_count' => $this->retryCount + 1,
+                    'retry_at' => $retryAt,
+                ]);
+
+                if ($retryAt->isFuture()) {
+                    self::dispatch($this->schedule, $this->retryCount + 1)->delay($retryAt);
+                } else {
+                    self::dispatch($this->schedule, $this->retryCount + 1);
+                }
+
+                return;
+            }
+
+            Log::warning('VerifyScheduleKeyUsageJob: Max handover deferrals reached, expiring schedule', [
+                'schedule_id' => $this->schedule->id,
+                'handover_id' => $pendingHandover->id,
+                'retry_count' => $this->retryCount,
+            ]);
         }
 
         // No USED event — key was never used for this schedule; expire it.

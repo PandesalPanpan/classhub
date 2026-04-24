@@ -80,6 +80,21 @@ class PostClassCheckJob implements ShouldQueue
             return;
         }
 
+        // If this handover was already applied through early confirmation,
+        // there is nothing left for post-class to resolve.
+        $alreadyAppliedHandover = ScheduleHandover::where('previous_schedule_id', $this->schedule->id)
+            ->whereNotNull('resolution_finalized_at')
+            ->first();
+
+        if ($alreadyAppliedHandover && $alreadyAppliedHandover->isBothConfirmed()) {
+            Log::info('PostClassCheckJob: Handover already applied via early confirmation', [
+                'schedule_id' => $this->schedule->id,
+                'handover_id' => $alreadyAppliedHandover->id,
+            ]);
+
+            return;
+        }
+
         // Step 2: Key not returned — check for an existing pending handover.
         $handover = ScheduleHandover::where('previous_schedule_id', $this->schedule->id)
             ->whereNull('resolution_finalized_at')

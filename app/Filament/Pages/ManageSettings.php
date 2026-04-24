@@ -51,7 +51,7 @@ class ManageSettings extends Page implements HasForms
                             ->maxValue(0.9)
                             ->step(0.01)
                             ->required()
-                            ->helperText('Value between 0.10 and 0.90.'),
+                            ->helperText('Value between 0.10 and 0.90. For 30-minute schedules, this check should happen after the grace period to avoid timing conflicts.'),
                         TextInput::make('handover_eligibility_window_minutes')
                             ->label('Handover Eligibility Window (minutes)')
                             ->numeric()
@@ -65,7 +65,8 @@ class ManageSettings extends Page implements HasForms
                             ->integer()
                             ->minValue(5)
                             ->maxValue(60)
-                            ->required(),
+                            ->required()
+                            ->helperText('If grace period is too high relative to key usage check percent, verification can run before handover resolution. Runtime deferral handles this, but lower grace is recommended.'),
                         Toggle::make('handover_enabled')
                             ->label('Enable handover flow')
                             ->required(),
@@ -108,6 +109,16 @@ class ManageSettings extends Page implements HasForms
         }
 
         $payload = $validator->validated();
+
+        $minimumSchedulableDurationMinutes = 30;
+        $verifyPointMinutes = $minimumSchedulableDurationMinutes * (float) $payload['key_usage_check_percent'];
+        if ($verifyPointMinutes <= (int) $payload['grace_period_minutes']) {
+            Notification::make()
+                ->title('Potential timing conflict detected')
+                ->body('For 30-minute schedules, key verification may run before handover grace ends. Jobs will defer automatically, but consider lowering grace period or increasing check percent.')
+                ->warning()
+                ->send();
+        }
 
         Setting::current()->update($payload);
         Setting::refreshCache();
