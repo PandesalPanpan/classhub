@@ -5,20 +5,20 @@ namespace App\Filament\Pages;
 use App\Models\Setting;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
-use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Filament\Support\Icons\Heroicon;
 use Filament\Schemas\Components\Section;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Validator;
 
 class ManageSettings extends Page implements HasForms
 {
-    use InteractsWithForms;
     use HasPageShield;
+    use InteractsWithForms;
 
     protected static ?string $title = 'System Settings';
 
@@ -41,8 +41,8 @@ class ManageSettings extends Page implements HasForms
     {
         return $form
             ->schema([
-                Section::make('Schedule and Handover Rules')
-                    ->description('Update scheduling and handover behavior used by jobs and validation rules.')
+                Section::make('Timing Configuration')
+                    ->description('Update scheduling and handover timing behavior used by jobs and validation rules.')
                     ->schema([
                         TextInput::make('key_usage_check_percent')
                             ->label('Key Usage Check Percent')
@@ -67,16 +67,27 @@ class ManageSettings extends Page implements HasForms
                             ->maxValue(60)
                             ->required()
                             ->helperText('If grace period is too high relative to key usage check percent, verification can run before handover resolution. Runtime deferral handles this, but lower grace is recommended.'),
+                    ])
+                    ->columns([
+                        'default' => 1,
+                        'md' => 2,
+                    ]),
+                Section::make('Feature Toggles')
+                    ->description('Enable or disable optional schedule and portal behaviors.')
+                    ->schema([
                         Toggle::make('handover_enabled')
                             ->label('Enable handover flow')
                             ->required(),
                         Toggle::make('allow_past_schedule_requests')
                             ->label('Allow past schedule requests')
                             ->required(),
+                        Toggle::make('allow_app_registration')
+                            ->label('Allow app panel self-registration')
+                            ->required(),
                     ])
                     ->columns([
                         'default' => 1,
-                        'md' => 2,
+                        'md' => 3,
                     ]),
             ])
             ->statePath('data');
@@ -92,6 +103,7 @@ class ManageSettings extends Page implements HasForms
             'grace_period_minutes' => ['required', 'integer', 'between:5,60', 'lte:handover_eligibility_window_minutes'],
             'handover_enabled' => ['required', 'boolean'],
             'allow_past_schedule_requests' => ['required', 'boolean'],
+            'allow_app_registration' => ['required', 'boolean'],
         ], [
             'grace_period_minutes.lte' => 'The grace period must be less than or equal to the handover eligibility window.',
         ]);

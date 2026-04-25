@@ -7,5 +7,6 @@ return [
         'key_usage_check_percent' => 0.4,
         'handover_enabled' => true,
         'allow_past_schedule_requests' => false,
+        'allow_app_registration' => true,
     ],
 ];

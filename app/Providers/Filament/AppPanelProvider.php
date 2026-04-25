@@ -2,8 +2,11 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\EditProfile;
+use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\Auth\Register;
 use App\Filament\Pages\RequestSchedule;
+use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -18,7 +21,6 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
-use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
 
 class AppPanelProvider extends PanelProvider
 {
@@ -28,9 +30,10 @@ class AppPanelProvider extends PanelProvider
             ->id('app')
             ->path(path: 'portal')
             ->registration(Register::class)
-            ->login()
+            ->login(Login::class)
+            ->passwordReset()
             ->emailVerification(isRequired: true)
-            ->profile()
+            ->profile(EditProfile::class)
             ->topNavigation()
             ->colors([
                 'primary' => Color::Red,
@@ -77,12 +80,11 @@ class AppPanelProvider extends PanelProvider
                         ->config([
                             'initialView' => 'timeGridWeek',
                         ]),
-                        AuthUIEnhancerPlugin::make()
-                            ->formPanelPosition('right')
-                            ->formPanelWidth('40%')
-                            ->emptyPanelBackgroundImageUrl('https://i.imgur.com/2xQUt6D.jpeg')
+                    AuthUIEnhancerPlugin::make()
+                        ->formPanelPosition('right')
+                        ->formPanelWidth('40%')
+                        ->emptyPanelBackgroundImageUrl('https://i.imgur.com/2xQUt6D.jpeg'),
                 ]
-
 
             );
     }

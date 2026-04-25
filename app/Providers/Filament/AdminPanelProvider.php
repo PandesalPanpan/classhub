@@ -2,14 +2,21 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\BulkSchedule;
+use App\Filament\Pages\JobQueue;
 use App\Filament\Pages\ManageSettings;
 use App\Filament\Resources\Rooms\RoomResource;
 use App\Filament\Resources\Schedules\ScheduleResource;
 use App\Filament\Resources\Users\UserResource;
+use App\Filament\Widgets\ActiveSchedulesWidget;
 use App\Filament\Widgets\IotStatusWidget;
+use App\Filament\Widgets\RoomTimeUsageWidget;
+use App\Filament\Widgets\RoomUsageWidget;
+use App\Filament\Widgets\StatsOverviewWidget;
 use App\Livewire\CalendarWidget;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
+use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -26,7 +33,6 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
-use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -37,7 +43,8 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->profile()
+            ->passwordReset()
+            ->profile(EditProfile::class)
             ->topNavigation()
             ->colors([
                 'primary' => Color::Amber,
@@ -48,6 +55,7 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 Dashboard::class,
                 BulkSchedule::class,
+                JobQueue::class,
                 ManageSettings::class,
             ])
             ->resources([
@@ -58,7 +66,11 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 AccountWidget::class,
+                StatsOverviewWidget::class,
+                ActiveSchedulesWidget::class,
                 IotStatusWidget::class,
+                RoomUsageWidget::class,
+                RoomTimeUsageWidget::class,
                 CalendarWidget::class,
             ])
             ->middleware([
@@ -96,7 +108,7 @@ class AdminPanelProvider extends PanelProvider
                     AuthUIEnhancerPlugin::make()
                         ->formPanelPosition('right')
                         ->formPanelWidth('40%')
-                        ->emptyPanelBackgroundImageUrl('https://i.imgur.com/2xQUt6D.jpeg')
+                        ->emptyPanelBackgroundImageUrl('https://i.imgur.com/2xQUt6D.jpeg'),
                 ],
             )
             ->databaseNotifications()

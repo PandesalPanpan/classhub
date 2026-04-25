@@ -89,6 +89,32 @@ class EndOfClassJob implements ShouldQueue
             return;
         }
 
+        if ($nextSchedule->requester_id === $this->schedule->requester_id) {
+            $key->update(['status' => KeyStatus::HandedOver]);
+
+            KeyEvent::firstOrCreate(
+                [
+                    'key_id' => $key->id,
+                    'schedule_id' => $nextSchedule->id,
+                    'status' => KeyStatus::Used->value,
+                    'source' => 'synthetic',
+                ],
+                [
+                    'occurred_at' => $nextSchedule->start_time,
+                ]
+            );
+
+            Log::info('EndOfClassJob: Same requester back-to-back schedules, skipping handover confirmation emails', [
+                'schedule_id' => $this->schedule->id,
+                'next_schedule_id' => $nextSchedule->id,
+                'requester_id' => $this->schedule->requester_id,
+            ]);
+
+            $this->dispatchPostClassCheck();
+
+            return;
+        }
+
         // Ensure only one handover record per previous schedule (idempotent).
         $handover = ScheduleHandover::firstOrCreate(
             ['previous_schedule_id' => $this->schedule->id],
@@ -99,11 +125,13 @@ class EndOfClassJob implements ShouldQueue
             ]
         );
 
-        if (! $handover->wasRecentlyCreated && $handover->resolution_finalized_at !== null) {
-            Log::info('EndOfClassJob: Handover already finalized, skipping', [
+        if (! $handover->wasRecentlyCreated) {
+            Log::info('EndOfClassJob: Handover already exists, skipping duplicate email send', [
                 'schedule_id' => $this->schedule->id,
                 'handover_id' => $handover->id,
             ]);
+
+            $this->dispatchPostClassCheck();
 
             return;
         }

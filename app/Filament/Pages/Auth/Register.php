@@ -2,12 +2,12 @@
 
 namespace App\Filament\Pages\Auth;
 
+use App\Models\Setting;
 use Filament\Auth\Pages\Register as BaseRegister;
 use Filament\Forms\Components\Checkbox;
-use Filament\Schemas\Components\Component;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\Rules\Password;
@@ -15,6 +15,16 @@ use Illuminate\Validation\Rules\Password;
 class Register extends BaseRegister
 {
     protected bool $isClassRepresentative = false;
+
+    public function mount(): void
+    {
+        if (! (bool) Setting::get('allow_app_registration')) {
+            abort(404);
+        }
+
+        parent::mount();
+    }
+
     public function form(Schema $schema): Schema
     {
         return $schema
@@ -34,7 +44,7 @@ class Register extends BaseRegister
         return Checkbox::make('is_class_representative')
             ->label(__('I am a Class Representative'))
             ->required()
-            ->default(false);   
+            ->default(false);
     }
 
     protected function getNameFormComponent(): Component
@@ -65,7 +75,7 @@ class Register extends BaseRegister
             ->required()
             ->rule(Password::default())
             ->showAllValidationMessages()
-            ->dehydrateStateUsing(fn($state) => Hash::make($state))
+            ->dehydrateStateUsing(fn ($state) => Hash::make($state))
             ->same('passwordConfirmation')
             ->validationAttribute(__('filament-panels::auth/pages/register.form.password.validation_attribute'));
     }
@@ -83,12 +93,12 @@ class Register extends BaseRegister
     protected function getPolicyAcceptanceFormComponent(): Component
     {
         $policyUrl = route('policy');
-        
+
         return Checkbox::make('policy_accepted')
             ->label(new HtmlString(
-                __('I agree to the ') . 
-                '<a href="' . $policyUrl . '" target="_blank" rel="noopener noreferrer" style="color: rgb(37, 99, 235); text-decoration: underline; font-weight: 500;">' . 
-                __('CPE Room Utilization Terms & Conditions') . 
+                __('I agree to the ').
+                '<a href="'.$policyUrl.'" target="_blank" rel="noopener noreferrer" style="color: rgb(37, 99, 235); text-decoration: underline; font-weight: 500;">'.
+                __('CPE Room Utilization Terms & Conditions').
                 '</a>'
             ))
             ->required()
@@ -104,10 +114,10 @@ class Register extends BaseRegister
     {
         // Store the checkbox value before removing it
         $this->isClassRepresentative = (bool) ($data['is_class_representative'] ?? false);
-        
+
         // Remove the field so it doesn't try to insert into a non-existent column
         unset($data['is_class_representative']);
-        
+
         return $data;
     }
 }

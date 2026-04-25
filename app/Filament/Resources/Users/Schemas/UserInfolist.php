@@ -13,6 +13,14 @@ class UserInfolist
             ->components([
                 TextEntry::make('name'),
                 TextEntry::make('email'),
+                TextEntry::make('mobile_number')
+                    ->label('Mobile Number')
+                    ->placeholder('-'),
+                TextEntry::make('messenger_link')
+                    ->label('Messenger Link')
+                    ->url(fn (?string $state): ?string => $state)
+                    ->openUrlInNewTab()
+                    ->placeholder('-'),
                 TextEntry::make('roles.name')
                     ->badge(),
                 TextEntry::make('created_at'),

@@ -172,7 +172,24 @@
             <strong>📌 Important Instructions:</strong>
             <ul style="margin: 10px 0 0 0; padding-left: 20px;">
                 <li>Please arrive at least 5 minutes before your scheduled time.</li>
-                <li>Key pickup instructions will be provided separately.</li>
+                <li>Pick up the room key from the laboratory before your class starts.</li>
+                @if($nextSchedule)
+                <li>If the previous schedule holder offers a handover, you may receive the key directly from them.</li>
+                @endif
+                @if($schedule->approver?->mobile_number || $schedule->approver?->messenger_link)
+                <li>
+                    For assistance, you may contact the approving admin ({{ $schedule->approver?->name ?? 'Admin' }}):
+                    @if($schedule->approver?->mobile_number)
+                        Mobile: {{ $schedule->approver->mobile_number }}
+                    @endif
+                    @if($schedule->approver?->messenger_link)
+                        @if($schedule->approver?->mobile_number) | @endif
+                        Messenger: <a href="{{ $schedule->approver->messenger_link }}">Open chat</a>
+                    @endif
+                </li>
+                @else
+                <li>Contact the admin office if you need help with key pickup or handover coordination.</li>
+                @endif
                 <li>Remember to return the key after your session.</li>
             </ul>
         </div>

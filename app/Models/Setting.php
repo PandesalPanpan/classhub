@@ -13,6 +13,7 @@ class Setting extends Model
         'grace_period_minutes',
         'handover_enabled',
         'allow_past_schedule_requests',
+        'allow_app_registration',
     ];
 
     protected function casts(): array
@@ -23,6 +24,7 @@ class Setting extends Model
             'grace_period_minutes' => 'integer',
             'handover_enabled' => 'boolean',
             'allow_past_schedule_requests' => 'boolean',
+            'allow_app_registration' => 'boolean',
         ];
     }
 
@@ -50,6 +52,7 @@ class Setting extends Model
             'grace_period_minutes' => (int) config('classhub.schedule.grace_period_minutes', 15),
             'handover_enabled' => (bool) config('classhub.schedule.handover_enabled', true),
             'allow_past_schedule_requests' => (bool) config('classhub.schedule.allow_past_schedule_requests', false),
+            'allow_app_registration' => (bool) config('classhub.schedule.allow_app_registration', true),
         ];
     }
 
@@ -89,6 +92,7 @@ class Setting extends Model
                 'grace_period_minutes' => (int) $model->grace_period_minutes,
                 'handover_enabled' => (bool) $model->handover_enabled,
                 'allow_past_schedule_requests' => (bool) $model->allow_past_schedule_requests,
+                'allow_app_registration' => (bool) $model->allow_app_registration,
             ];
         });
     }
