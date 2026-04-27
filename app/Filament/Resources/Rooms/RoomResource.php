@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Rooms;
 
 use App\Filament\Resources\Rooms\Pages\CreateRoom;
 use App\Filament\Resources\Rooms\Pages\EditRoom;
+use App\Filament\Resources\Rooms\Pages\ListRoomActivities;
 use App\Filament\Resources\Rooms\Pages\ListRooms;
 use App\Filament\Resources\Rooms\Pages\ViewRoom;
 use App\Filament\Resources\Rooms\Schemas\RoomForm;
@@ -55,6 +56,7 @@ class RoomResource extends Resource
             'create' => CreateRoom::route('/create'),
             'view' => ViewRoom::route('/{record}'),
             'edit' => EditRoom::route('/{record}/edit'),
+            'activities' => ListRoomActivities::route('/{record}/activities'),
         ];
     }
 }

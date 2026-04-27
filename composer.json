@@ -18,7 +18,10 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10.1",
         "livewire/livewire": "^3.7",
+        "maatwebsite/excel": "^3.1",
+        "phpoffice/phpword": "^1.4",
         "pusher/pusher-php-server": "^7.2",
+        "pxlrbt/filament-activity-log": "*",
         "saade/filament-fullcalendar": "4.x-dev"
     },
     "require-dev": {

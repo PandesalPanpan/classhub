@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\Room;
 use App\Models\Schedule;
+use App\Observers\RoleObserver;
 use App\Observers\ScheduleObserver;
 use App\Policies\RoomPolicy;
 use App\Policies\SchedulePolicy;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -33,6 +35,7 @@ class AppServiceProvider extends ServiceProvider
 
         Model::unguard();
         Schedule::observe(ScheduleObserver::class);
+        Role::observe(RoleObserver::class);
         Gate::policy(Schedule::class, SchedulePolicy::class);
         Gate::policy(Room::class, RoomPolicy::class);
         // Model::preventLazyLoading();
