@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\Setting;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+use Filament\Forms\Components\MarkdownEditor;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -91,6 +92,15 @@ class ManageSettings extends Page implements HasForms
                         'default' => 1,
                         'md' => 3,
                     ]),
+                Section::make('Policy Page')
+                    ->description('Publish the public policy page content shown on /policy using Markdown.')
+                    ->schema([
+                        MarkdownEditor::make('policy_content')
+                            ->label('Policy Content')
+                            ->required()
+                            ->columnSpanFull()
+                            ->helperText('Supports headings, lists, links, and emphasis.'),
+                    ]),
             ])
             ->statePath('data');
     }
@@ -106,6 +116,7 @@ class ManageSettings extends Page implements HasForms
             'handover_enabled' => ['required', 'boolean'],
             'allow_past_schedule_requests' => ['required', 'boolean'],
             'allow_app_registration' => ['required', 'boolean'],
+            'policy_content' => ['required', 'string'],
         ], [
             'grace_period_minutes.lte' => 'The grace period must be less than or equal to the handover eligibility window.',
         ]);
@@ -134,7 +145,12 @@ class ManageSettings extends Page implements HasForms
                 ->send();
         }
 
-        Setting::current()->update($payload);
+        $settings = Setting::current();
+        if (($payload['policy_content'] ?? null) !== $settings->policy_content) {
+            $payload['policy_updated_at'] = now();
+        }
+
+        $settings->update($payload);
         Setting::refreshCache();
 
         Notification::make()

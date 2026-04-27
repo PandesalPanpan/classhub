@@ -27,6 +27,8 @@ class Setting extends Model
         'handover_enabled',
         'allow_past_schedule_requests',
         'allow_app_registration',
+        'policy_content',
+        'policy_updated_at',
     ];
 
     protected function casts(): array
@@ -38,6 +40,7 @@ class Setting extends Model
             'handover_enabled' => 'boolean',
             'allow_past_schedule_requests' => 'boolean',
             'allow_app_registration' => 'boolean',
+            'policy_updated_at' => 'datetime',
         ];
     }
 
@@ -66,6 +69,8 @@ class Setting extends Model
             'handover_enabled' => (bool) config('classhub.schedule.handover_enabled', true),
             'allow_past_schedule_requests' => (bool) config('classhub.schedule.allow_past_schedule_requests', false),
             'allow_app_registration' => (bool) config('classhub.schedule.allow_app_registration', true),
+            'policy_content' => null,
+            'policy_updated_at' => null,
         ];
     }
 
@@ -106,6 +111,8 @@ class Setting extends Model
                 'handover_enabled' => (bool) $model->handover_enabled,
                 'allow_past_schedule_requests' => (bool) $model->allow_past_schedule_requests,
                 'allow_app_registration' => (bool) $model->allow_app_registration,
+                'policy_content' => $model->policy_content,
+                'policy_updated_at' => $model->policy_updated_at,
             ];
         });
     }
