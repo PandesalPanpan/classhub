@@ -654,6 +654,7 @@ class CalendarWidget extends FullCalendarWidget
                 'start' => $schedule->start_time->toIso8601String(),
                 'end' => $schedule->end_time->toIso8601String(),
                 'backgroundColor' => $color,
+                'textColor' => '#ffffff',
                 'borderColor' => $isPending ? '#ea580c' : $color, // orange-600 for pending (matches dedicated bg)
                 'borderWidth' => $isPending ? 3 : 1,
                 'classNames' => $isPending ? ['pending-request'] : ($isTemplate ? ['template-schedule'] : []),
