@@ -3,10 +3,13 @@
 namespace App\Filament\Resources\Rooms\Tables;
 
 use App\KeyStatus;
+use App\Models\Room;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -78,6 +81,28 @@ class RoomsTable
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
+                Action::make('toggleKeyTracking')
+                    ->label(fn (Room $record): string => $record->key?->status === KeyStatus::Disabled ? 'Enable Key' : 'Disable Key')
+                    ->icon(fn (Room $record): string => $record->key?->status === KeyStatus::Disabled ? 'heroicon-o-lock-open' : 'heroicon-o-lock-closed')
+                    ->color(fn (Room $record): string => $record->key?->status === KeyStatus::Disabled ? 'success' : 'warning')
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (Room $record): string => $record->key?->status === KeyStatus::Disabled ? 'Enable Key Tracking?' : 'Disable Key Tracking?')
+                    ->modalDescription(fn (Room $record): string => $record->key?->status === KeyStatus::Disabled
+                        ? 'Key tracking will resume. The system will monitor this key and send alerts normally.'
+                        : 'Key tracking will be paused. The system will NOT send missing key alerts for this key until re-enabled. Use this when you know a class is staying for a consecutive slot.')
+                    ->modalSubmitActionLabel(fn (Room $record): string => $record->key?->status === KeyStatus::Disabled ? 'Enable' : 'Disable')
+                    ->visible(fn (Room $record): bool => $record->key !== null)
+                    ->action(function (Room $record): void {
+                        if (! $record->key) {
+                            return;
+                        }
+                        $newStatus = $record->key->status === KeyStatus::Disabled ? KeyStatus::Stored : KeyStatus::Disabled;
+                        $record->key->update(['status' => $newStatus]);
+                        Notification::make()
+                            ->title($newStatus === KeyStatus::Disabled ? 'Key tracking disabled' : 'Key tracking re-enabled')
+                            ->success()
+                            ->send();
+                    }),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
