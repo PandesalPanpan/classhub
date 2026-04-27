@@ -6,6 +6,10 @@ USER root
 RUN apt-get update && apt-get install -y \
     libzip-dev \
     libicu-dev \
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    libpng-dev \
+    libwebp-dev \
     curl \
     gnupg \
     zip
@@ -17,4 +21,5 @@ RUN curl -fsSL https://deb.nodesource.com/setup_25.x | bash - \
 
 RUN docker-php-ext-install pdo_mysql zip pcntl
 RUN docker-php-ext-configure intl && docker-php-ext-install intl
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg && docker-php-ext-install gd
 RUN (pecl list | grep -q '^redis ' || pecl install redis) && docker-php-ext-enable redis
