@@ -17,10 +17,24 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Schedule extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
+
+    protected static string $logName = 'schedule';
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['status', 'subject', 'instructor', 'program_year_section', 'start_time', 'end_time', 'room_id', 'requester_id', 'remarks', 'type'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn (string $eventName): string => "Schedule was {$eventName}")
+            ->useLogName(static::$logName);
+    }
 
     /**
      * Scope: pending schedules that match the exact room and time slot.
