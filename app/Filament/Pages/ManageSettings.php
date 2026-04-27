@@ -24,6 +24,8 @@ class ManageSettings extends Page implements HasForms
 
     protected static ?string $navigationLabel = 'Settings';
 
+    protected static \UnitEnum|string|null $navigationGroup = 'System';
+
     protected static ?int $navigationSort = 100;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCog6Tooth;

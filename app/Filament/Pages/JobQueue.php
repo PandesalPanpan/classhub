@@ -17,6 +17,8 @@ class JobQueue extends Page
 
     protected static ?string $navigationLabel = 'Queue Monitor';
 
+    protected static \UnitEnum|string|null $navigationGroup = 'System';
+
     protected static ?int $navigationSort = 90;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedQueueList;
