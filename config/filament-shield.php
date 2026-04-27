@@ -134,16 +134,17 @@ return [
         'merge' => true,
         'generate' => true,
         'methods' => [
-            'viewAny', 'view', 'create', 'update', 'delete', 'restore',
-            'forceDelete', 'forceDeleteAny', 'restoreAny', 'replicate', 'reorder',
+            'viewAny', 'view', 'create', 'update', 'delete',
+            // Commented out: currently unused (no soft deletes or replicate/reorder actions).
+            // 'restore', 'forceDelete', 'forceDeleteAny', 'restoreAny', 'replicate', 'reorder',
         ],
         'single_parameter_methods' => [
             'viewAny',
             'create',
-            'deleteAny',
-            'forceDeleteAny',
-            'restoreAny',
-            'reorder',
+            // 'deleteAny',
+            // 'forceDeleteAny',
+            // 'restoreAny',
+            // 'reorder',
         ],
     ],
 
@@ -226,6 +227,13 @@ return [
         'exclude' => [
             \Filament\Widgets\AccountWidget::class,
             \Filament\Widgets\FilamentInfoWidget::class,
+            \App\Filament\Widgets\ActiveJobsQueueWidget::class,
+            \App\Filament\Widgets\ActiveSchedulesWidget::class,
+            \App\Filament\Widgets\FailedJobsQueueWidget::class,
+            \App\Filament\Widgets\IotStatusWidget::class,
+            \App\Filament\Widgets\RoomTimeUsageWidget::class,
+            \App\Filament\Widgets\RoomUsageWidget::class,
+            \App\Filament\Widgets\StatsOverviewWidget::class,
         ],
     ],
 

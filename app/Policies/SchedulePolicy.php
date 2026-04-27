@@ -37,34 +37,4 @@ class SchedulePolicy
         return $authUser->can('Delete:Schedule');
     }
 
-    public function restore(AuthUser $authUser, Schedule $schedule): bool
-    {
-        return $authUser->can('Restore:Schedule');
-    }
-
-    public function forceDelete(AuthUser $authUser, Schedule $schedule): bool
-    {
-        return $authUser->can('ForceDelete:Schedule');
-    }
-
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:Schedule');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('RestoreAny:Schedule');
-    }
-
-    public function replicate(AuthUser $authUser, Schedule $schedule): bool
-    {
-        return $authUser->can('Replicate:Schedule');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Schedule');
-    }
-
 }
