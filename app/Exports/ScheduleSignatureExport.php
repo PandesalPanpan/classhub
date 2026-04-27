@@ -30,7 +30,7 @@ class ScheduleSignatureExport
 
         $section->addText(
             'Class Schedule Sign Sheet — Generated '.now()->format('F j, Y g:i A'),
-            ['bold' => true, 'size' => 13],
+            ['bold' => true, 'size' => 11],
             ['alignment' => 'center', 'spaceAfter' => 240]
         );
 
@@ -47,9 +47,10 @@ class ScheduleSignatureExport
         $table = $section->addTable($tableStyle);
 
         $headerFont = ['bold' => true, 'size' => 9];
-        $headerCell = ['bgColor' => 'D3D3D3'];
+        $headerCell = ['bgColor' => 'D3D3D3', 'valign' => 'center'];
+        $dataCell = ['valign' => 'center'];
         $headers = ['#', 'Date', 'Time', 'Room', 'Subject', 'Prog/Yr/Sec', 'Instructor', 'Class Representative', 'Signature'];
-        $widths = [400, 1100, 1200, 700, 1800, 1500, 1800, 1800, 2200];
+        $widths = [450, 1400, 1500, 700, 2200, 1800, 2200, 2200, 2948];
 
         $table->addRow(350);
         foreach ($headers as $i => $header) {
@@ -57,7 +58,7 @@ class ScheduleSignatureExport
         }
 
         foreach ($schedules as $index => $schedule) {
-            $table->addRow(500);
+            $table->addRow(400);
 
             $cellData = [
                 (string) ($index + 1),
@@ -72,7 +73,7 @@ class ScheduleSignatureExport
             ];
 
             foreach ($cellData as $i => $value) {
-                $table->addCell($widths[$i])->addText($value, ['size' => 9]);
+                $table->addCell($widths[$i], $dataCell)->addText($value, ['size' => 8]);
             }
         }
 
