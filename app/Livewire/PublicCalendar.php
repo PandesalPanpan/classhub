@@ -4,18 +4,17 @@ namespace App\Livewire;
 
 use App\Models\Room;
 use App\Models\Schedule;
-use Livewire\Component;
 use Livewire\Attributes\Title;
+use Livewire\Component;
 
 class PublicCalendar extends Component
 {
-
     #[Title('Calendar')]
     public function render()
     {
         $rooms = Room::query()
             ->get()
-            ->map(fn($room) => [
+            ->map(fn ($room) => [
                 'id' => "room-{$room->room_number}",
                 'title' => $room->room_number,
             ])

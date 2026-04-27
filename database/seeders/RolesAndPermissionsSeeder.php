@@ -47,5 +47,3 @@ class RolesAndPermissionsSeeder extends Seeder
          */
     }
 }
-
-

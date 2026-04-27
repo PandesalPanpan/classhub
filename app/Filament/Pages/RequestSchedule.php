@@ -3,10 +3,10 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Pages\Schemas\RequestScheduleForm;
-use App\Models\Setting;
 use App\Filament\Resources\Schedules\Tables\ScheduleColumns;
 use App\Filament\Resources\Schedules\Tables\ScheduleTableFilters;
 use App\Models\Schedule;
+use App\Models\Setting;
 use App\ScheduleStatus;
 use App\Services\EmailNotificationService;
 use App\Services\ScheduleNotificationService;

@@ -687,20 +687,20 @@ class CalendarWidget extends FullCalendarWidget
                 $start = Carbon::parse($record->start_time);
                 $end = Carbon::parse($record->end_time);
                 $durationMinutes = (int) $start->diffInMinutes($end);
-                
+
                 // Check if duration is a valid option (30-minute increments, 30-810 range)
                 $isValidDuration = $durationMinutes >= 30 && $durationMinutes <= 810 && $durationMinutes % 30 === 0;
-                
+
                 $fillData = [
                     'start_time' => $record->start_time->format('Y-m-d H:i:s'),
                     'end_time' => $record->end_time->format('Y-m-d H:i:s'),
                 ];
-                
+
                 // Only set duration_minutes if it matches a valid option
                 if ($isValidDuration) {
                     $fillData['duration_minutes'] = $durationMinutes;
                 }
-                
+
                 $form->fill($fillData);
             });
     }
@@ -726,27 +726,27 @@ class CalendarWidget extends FullCalendarWidget
                 return Auth::check() && Auth::user()->can('Update:Schedule');
             })
             ->hidden(function (Schedule $record) {
-                return !Auth::check() || !Auth::user()->can('Update:Schedule');
+                return ! Auth::check() || ! Auth::user()->can('Update:Schedule');
             })
             ->mountUsing(function ($form, Schedule $record) {
                 // Calculate duration in minutes from start_time and end_time
                 $start = Carbon::parse($record->start_time);
                 $end = Carbon::parse($record->end_time);
                 $durationMinutes = (int) $start->diffInMinutes($end);
-                
+
                 // Check if duration is a valid option (30-minute increments, 30-810 range)
                 $isValidDuration = $durationMinutes >= 30 && $durationMinutes <= 810 && $durationMinutes % 30 === 0;
-                
+
                 $fillData = [
                     'start_time' => $record->start_time->format('Y-m-d H:i:s'),
                     'end_time' => $record->end_time->format('Y-m-d H:i:s'),
                 ];
-                
+
                 // Only set duration_minutes if it matches a valid option
                 if ($isValidDuration) {
                     $fillData['duration_minutes'] = $durationMinutes;
                 }
-                
+
                 $form->fill($fillData);
             });
         $actions[] = $editAction;
@@ -756,7 +756,7 @@ class CalendarWidget extends FullCalendarWidget
                 return Auth::check() && Auth::user()->can('Delete:Schedule');
             })
             ->hidden(function (Schedule $record) {
-                return !Auth::check() || !Auth::user()->can('Delete:Schedule');
+                return ! Auth::check() || ! Auth::user()->can('Delete:Schedule');
             });
         $actions[] = $deleteAction;
 

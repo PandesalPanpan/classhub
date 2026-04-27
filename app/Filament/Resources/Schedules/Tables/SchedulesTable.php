@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Schedules\Tables;
 
 use App\Filament\Resources\Schedules\Actions\SchedulesActions;
-use App\Filament\Resources\Schedules\Tables\ScheduleTableFilters;
 use App\Models\Schedule;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
