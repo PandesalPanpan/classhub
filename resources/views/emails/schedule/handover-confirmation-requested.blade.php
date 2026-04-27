@@ -55,4 +55,11 @@
             </td>
         </tr>
     </table>
+
+    @include('emails.partials.callout', [
+        'title' => "Can't confirm via email?",
+        'content' => 'No problem. Return the key to the key box, then the next representative can pick it up directly. The system will detect the return and pickup automatically via the IoT scanner, so email confirmation is optional in this fallback flow.',
+        'accent' => '#64748b',
+        'background' => '#f8fafc',
+    ])
 @endsection
