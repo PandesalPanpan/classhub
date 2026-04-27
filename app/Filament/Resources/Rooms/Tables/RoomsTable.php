@@ -13,6 +13,7 @@ use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
 class RoomsTable
@@ -22,6 +23,7 @@ class RoomsTable
         return $table
             ->poll('10s')
             ->defaultPaginationPageOption(25)
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['key']))
             ->columns([
                 TextColumn::make('room_number')
                     ->searchable(),
@@ -47,6 +49,15 @@ class RoomsTable
 
                         $statusLabel = $state instanceof KeyStatus ? $state->value : (string) $state;
 
+                        $statusLabel = match ($statusLabel) {
+                            KeyStatus::Used->value => 'IN USE',
+                            KeyStatus::Stored->value => 'STORED',
+                            KeyStatus::Disabled->value => 'DISABLED',
+                            KeyStatus::HandedOver->value => 'HANDOVER',
+                            KeyStatus::Missing->value => 'MISSING',
+                            default => $statusLabel,
+                        };
+
                         return "{$record->key->slot_number} • {$statusLabel}";
                     })
                     ->badge()
@@ -59,13 +70,32 @@ class RoomsTable
 
                         return match ($status) {
                             KeyStatus::Used => 'danger',
-                            KeyStatus::Stored => 'warning',
+                            KeyStatus::Stored => 'success',
                             KeyStatus::Disabled => 'secondary',
                             KeyStatus::HandedOver => 'info',
                             KeyStatus::Missing => 'danger',
                         };
                     })
                     ->searchable(),
+                TextColumn::make('current_schedule')
+                    ->label('Current Schedule')
+                    ->getStateUsing(function (Room $record): ?string {
+                        $schedule = $record->getCurrentKeySchedule();
+
+                        if (! $schedule) {
+                            return null;
+                        }
+
+                        return trim(($schedule->subject ?? '-').' - '.($schedule->program_year_section ?? '-'));
+                    })
+                    ->placeholder('—')
+                    ->wrap()
+                    ->toggleable(),
+                TextColumn::make('current_representative')
+                    ->label('Representative')
+                    ->getStateUsing(fn (Room $record): ?string => $record->getCurrentKeySchedule()?->requester?->name)
+                    ->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
