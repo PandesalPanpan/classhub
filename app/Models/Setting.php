@@ -22,6 +22,7 @@ class Setting extends Model
 
     protected $fillable = [
         'key_usage_check_percent',
+        'early_key_pickup_minutes',
         'handover_eligibility_window_minutes',
         'grace_period_minutes',
         'handover_enabled',
@@ -35,6 +36,7 @@ class Setting extends Model
     {
         return [
             'key_usage_check_percent' => 'float',
+            'early_key_pickup_minutes' => 'integer',
             'handover_eligibility_window_minutes' => 'integer',
             'grace_period_minutes' => 'integer',
             'handover_enabled' => 'boolean',
@@ -64,6 +66,7 @@ class Setting extends Model
     {
         return [
             'key_usage_check_percent' => (float) config('classhub.schedule.key_usage_check_percent', 0.4),
+            'early_key_pickup_minutes' => (int) config('classhub.schedule.early_key_pickup_minutes', 15),
             'handover_eligibility_window_minutes' => (int) config('classhub.schedule.handover_eligibility_window_minutes', 30),
             'grace_period_minutes' => (int) config('classhub.schedule.grace_period_minutes', 15),
             'handover_enabled' => (bool) config('classhub.schedule.handover_enabled', true),
@@ -106,6 +109,7 @@ class Setting extends Model
 
             return [
                 'key_usage_check_percent' => (float) $model->key_usage_check_percent,
+                'early_key_pickup_minutes' => (int) $model->early_key_pickup_minutes,
                 'handover_eligibility_window_minutes' => (int) $model->handover_eligibility_window_minutes,
                 'grace_period_minutes' => (int) $model->grace_period_minutes,
                 'handover_enabled' => (bool) $model->handover_enabled,

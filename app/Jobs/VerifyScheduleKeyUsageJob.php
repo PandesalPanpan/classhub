@@ -6,6 +6,7 @@ use App\KeyStatus;
 use App\Models\KeyEvent;
 use App\Models\Schedule;
 use App\Models\ScheduleHandover;
+use App\Models\Setting;
 use App\ScheduleStatus;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -55,7 +56,7 @@ class VerifyScheduleKeyUsageJob implements ShouldQueue
             ->where(function ($query) {
                 $query->where('schedule_id', $this->schedule->id)
                     ->orWhereBetween('occurred_at', [
-                        $this->schedule->start_time->copy()->subMinutes(15),
+                        $this->schedule->start_time->copy()->subMinutes((int) Setting::get('early_key_pickup_minutes')),
                         $this->schedule->end_time,
                     ]);
             })
