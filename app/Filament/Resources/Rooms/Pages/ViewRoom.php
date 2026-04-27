@@ -22,6 +22,15 @@ class ViewRoom extends ViewRecord
                 ->icon('heroicon-o-clock')
                 ->color('gray')
                 ->url(fn (): string => RoomResource::getUrl('activities', ['record' => $this->record])),
+            Action::make('viewKeyActivities')
+                ->label('Key Activity Log')
+                ->icon('heroicon-o-key')
+                ->color('gray')
+                ->visible(fn (): bool => $this->record->key !== null)
+                ->modalHeading('Key Activity Log')
+                ->modalSubmitAction(false)
+                ->modalCancelActionLabel('Close')
+                ->modalContent(fn () => view('filament.resources.rooms.pages.partials.key-activity-log', ['room' => $this->record->load('key')])),
             Action::make('toggleKeyTracking')
                 ->label(fn (): string => $this->record->key?->status === KeyStatus::Disabled ? 'Enable Key Tracking' : 'Disable Key Tracking')
                 ->icon(fn (): string => $this->record->key?->status === KeyStatus::Disabled ? 'heroicon-o-lock-open' : 'heroicon-o-lock-closed')
