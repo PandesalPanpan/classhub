@@ -14,3 +14,10 @@ Route::middleware('signed')->group(function () {
     Route::get('/handover/{handover}/dispute', [HandoverConfirmationController::class, 'dispute'])
         ->name('handover.dispute');
 });
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/export/schedule-excel', [\App\Http\Controllers\ScheduleExportController::class, 'excel'])
+        ->name('admin.schedule.export.excel');
+    Route::get('/export/schedule-signsheet', [\App\Http\Controllers\ScheduleExportController::class, 'signSheet'])
+        ->name('admin.schedule.export.signsheet');
+});
