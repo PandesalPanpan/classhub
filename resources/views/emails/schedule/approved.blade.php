@@ -1,213 +1,70 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Schedule Approved - PUP</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            color: #374151;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f3f4f6;
-        }
-        .container {
-            background-color: #ffffff;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            border-top: 6px solid #800000;
-        }
-        .university-header {
-            text-align: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #FFDF00;
-        }
-        .university-header h2 {
-            margin: 0;
-            color: #800000;
-            font-size: 18px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .university-header p {
-            margin: 0;
-            font-size: 12px;
-            color: #6b7280;
-            text-transform: uppercase;
-            font-weight: 600;
-        }
-        .header {
-            margin-bottom: 20px;
-        }
-        .header h1 {
-            color: #111827;
-            margin: 0;
-            font-size: 22px;
-        }
-        .status-badge {
-            display: inline-block;
-            background-color: #d1fae5;
-            color: #065f46;
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 12px;
-            font-weight: 700;
-            margin-top: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .details-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-        .details-table td {
-            padding: 12px 0;
-            border-bottom: 1px solid #f3f4f6;
-            font-size: 15px;
-        }
-        .details-table tr:last-child td {
-            border-bottom: none;
-        }
-        .info-label {
-            font-weight: 600;
-            color: #6b7280;
-            width: 35%;
-            vertical-align: top;
-        }
-        .info-value {
-            color: #111827;
-            font-weight: 500;
-        }
-        .instructions {
-            background-color: #f0fdf4;
-            border-left: 4px solid #10b981;
-            padding: 16px;
-            margin: 25px 0;
-            border-radius: 0 6px 6px 0;
-            font-size: 14px;
-        }
-        .btn-container {
-            text-align: center;
-            margin: 30px 0 10px 0;
-        }
-        .btn {
-            display: inline-block;
-            background-color: #800000;
-            color: #ffffff;
-            text-decoration: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 15px;
-        }
-        .footer {
-            margin-top: 35px;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
-            font-size: 13px;
-            color: #9ca3af;
-            text-align: center;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="university-header">
-            <h2>Polytechnic University of the Philippines</h2>
-            <p>ClassHub Scheduling System</p>
-        </div>
+@extends('emails.layout')
 
-        <div class="header">
-            <h1>Schedule Approved</h1>
-            <span class="status-badge">Approved</span>
-        </div>
+@section('title', 'Schedule Approved')
 
-        <p>Hello <strong>{{ $schedule->requester?->name ?? 'User' }}</strong>,</p>
+@section('content')
+    @php
+        $rows = [
+            'Room' => e($schedule->room?->room_number ?? 'Assigned Room'),
+            'Date' => e($schedule->start_time->format('l, F j, Y')),
+            'Time' => e($schedule->start_time->format('g:i A').' - '.$schedule->end_time->format('g:i A')),
+            'Subject/Course' => e($schedule->subject),
+            'Program/Section' => e($schedule->program_year_section),
+            'Instructor' => e($schedule->instructor ?? 'Not specified'),
+        ];
 
-        <p>Great news! Your schedule request has been <strong>approved</strong>. Here are the confirmed details:</p>
+        $contact = [];
+        if ($schedule->approver?->mobile_number) {
+            $contact[] = 'Mobile: '.e($schedule->approver->mobile_number);
+        }
+        if ($schedule->approver?->messenger_link) {
+            $contact[] = 'Messenger: <a href="'.e($schedule->approver->messenger_link).'" style="color: #800000;">Open chat</a>';
+        }
+    @endphp
 
-        <table class="details-table">
-            <tr>
-                <td class="info-label">Room</td>
-                <td class="info-value">{{ $schedule->room?->room_number ?? 'Assigned Room' }}</td>
-            </tr>
-            <tr>
-                <td class="info-label">Date</td>
-                <td class="info-value">{{ $schedule->start_time->format('l, F j, Y') }}</td>
-            </tr>
-            <tr>
-                <td class="info-label">Time</td>
-                <td class="info-value">
-                    {{ $schedule->start_time->format('g:i A') }} - {{ $schedule->end_time->format('g:i A') }}
-                </td>
-            </tr>
-            <tr>
-                <td class="info-label">Subject/Course</td>
-                <td class="info-value">{{ $schedule->subject }}</td>
-            </tr>
-            <tr>
-                <td class="info-label">Program/Section</td>
-                <td class="info-value">{{ $schedule->program_year_section }}</td>
-            </tr>
-            <tr>
-                <td class="info-label">Instructor</td>
-                <td class="info-value">{{ $schedule->instructor ?? 'Not specified' }}</td>
-            </tr>
-        </table>
+    <h1 class="email-heading" style="margin: 0 0 10px 0; color: #800000; font-size: 22px; line-height: 1.25;">Schedule Approved</h1>
+    @include('emails.partials.status-badge', ['status' => 'Approved', 'color' => 'green'])
 
-        @if($schedule->remarks)
-        <div class="instructions" style="background-color: #fffbeb; border-left-color: #f59e0b;">
-            <strong>📝 Admin Remarks:</strong>
-            <p style="margin: 10px 0 0 0;">{{ $schedule->remarks }}</p>
-        </div>
-        @endif
+    <p style="margin: 20px 0 0 0; font-size: 15px; line-height: 1.6;">Hello <strong>{{ $schedule->requester?->name ?? 'User' }}</strong>,</p>
+    <p style="margin: 12px 0 0 0; font-size: 15px; line-height: 1.6;">Your request has been approved. Please review the confirmed schedule details below.</p>
 
-        <div class="instructions">
-            <strong>📌 Important Instructions:</strong>
-            <ul style="margin: 10px 0 0 0; padding-left: 20px;">
-                <li>Please arrive at least 5 minutes before your scheduled time.</li>
-                <li>Pick up the room key from the laboratory before your class starts.</li>
-                @if($nextSchedule)
-                <li>If the previous schedule holder offers a handover, you may receive the key directly from them.</li>
-                @endif
-                @if($schedule->approver?->mobile_number || $schedule->approver?->messenger_link)
-                <li>
-                    For assistance, you may contact the approving admin ({{ $schedule->approver?->name ?? 'Admin' }}):
-                    @if($schedule->approver?->mobile_number)
-                        Mobile: {{ $schedule->approver->mobile_number }}
-                    @endif
-                    @if($schedule->approver?->messenger_link)
-                        @if($schedule->approver?->mobile_number) | @endif
-                        Messenger: <a href="{{ $schedule->approver->messenger_link }}">Open chat</a>
-                    @endif
-                </li>
-                @else
-                <li>Contact the admin office if you need help with key pickup or handover coordination.</li>
-                @endif
-                <li>Remember to return the key after your session.</li>
-            </ul>
-        </div>
+    @include('emails.partials.details-table', ['rows' => $rows])
 
-        @if($nextSchedule)
-        <div class="handover-hint" style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; margin: 15px 0 0 0; border-radius: 0 6px 6px 0; font-size: 14px;">
-            <strong>🤝 Handover Available:</strong> There is another class scheduled right after yours at <strong>{{ $nextSchedule->start_time->format('g:i A') }}</strong> by <strong>{{ $nextSchedule->requester?->name ?? 'another user' }}</strong>. You can pass the key directly to them instead of returning it to the lab.
-        </div>
-        @endif
+    @if($schedule->remarks)
+        @include('emails.partials.callout', [
+            'title' => 'Admin Remarks',
+            'content' => e($schedule->remarks),
+            'accent' => '#d97706',
+            'background' => '#fffbeb',
+        ])
+    @endif
 
-        <div class="btn-container">
-            <a href="{{ config('app.url') }}/portal/request-schedule" class="btn">View My Schedule</a>
-        </div>
+    @include('emails.partials.callout', [
+        'title' => 'Important Instructions',
+        'content' => '<ul style="margin: 0; padding-left: 20px;">'
+            .'<li>Please arrive at least 5 minutes before your scheduled time.</li>'
+            .'<li>Pick up the room key from the laboratory before your class starts.</li>'
+            .($nextSchedule ? '<li>If the previous schedule holder offers a handover, you may receive the key directly from them.</li>' : '')
+            .(! empty($contact)
+                ? '<li>For assistance, you may contact the approving admin ('.e($schedule->approver?->name ?? 'Admin').'): '.implode(' | ', $contact).'</li>'
+                : '<li>Contact the admin office if you need help with key pickup or handover coordination.</li>')
+            .'<li>Remember to return the key after your session.</li>'
+            .'</ul>',
+        'accent' => '#16a34a',
+        'background' => '#f0fdf4',
+    ])
 
-        <div class="footer">
-            <p>This is an automated message from <strong>ClassHub - PUP</strong>.</p>
-            <p>Need help? Contact support for assistance.</p>
-        </div>
-    </div>
-</body>
-</html>
+    @if($nextSchedule)
+        @include('emails.partials.callout', [
+            'title' => 'Handover Available',
+            'content' => 'There is another class scheduled right after yours at <strong>'.e($nextSchedule->start_time->format('g:i A')).'</strong> by <strong>'.e($nextSchedule->requester?->name ?? 'another user').'</strong>. You may pass the key directly to them instead of returning it to the lab.',
+            'accent' => '#d97706',
+            'background' => '#fffbeb',
+        ])
+    @endif
+
+    @include('emails.partials.button', [
+        'label' => 'View My Schedule',
+        'url' => config('app.url').'/portal/request-schedule',
+    ])
+@endsection

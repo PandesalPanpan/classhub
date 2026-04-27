@@ -1,174 +1,35 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Schedule Request Cancelled - PUP</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            color: #374151;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f3f4f6;
-        }
-        .container {
-            background-color: #ffffff;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            border-top: 6px solid #800000;
-        }
-        .university-header {
-            text-align: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #FFDF00;
-        }
-        .university-header h2 {
-            margin: 0;
-            color: #800000;
-            font-size: 18px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .university-header p {
-            margin: 0;
-            font-size: 12px;
-            color: #6b7280;
-            text-transform: uppercase;
-            font-weight: 600;
-        }
-        .header {
-            margin-bottom: 20px;
-        }
-        .header h1 {
-            color: #111827;
-            margin: 0;
-            font-size: 22px;
-        }
-        .status-badge {
-            display: inline-block;
-            background-color: #f3f4f6;
-            color: #374151;
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 12px;
-            font-weight: 700;
-            margin-top: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .details-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-        .details-table td {
-            padding: 12px 0;
-            border-bottom: 1px solid #f3f4f6;
-            font-size: 15px;
-        }
-        .details-table tr:last-child td {
-            border-bottom: none;
-        }
-        .info-label {
-            font-weight: 600;
-            color: #6b7280;
-            width: 35%;
-            vertical-align: top;
-        }
-        .info-value {
-            color: #111827;
-            font-weight: 500;
-        }
-        .note {
-            background-color: #f9fafb;
-            border-left: 4px solid #6b7280;
-            padding: 16px;
-            margin: 25px 0;
-            border-radius: 0 6px 6px 0;
-            font-size: 14px;
-        }
-        .btn-container {
-            text-align: center;
-            margin: 30px 0 10px 0;
-        }
-        .btn {
-            display: inline-block;
-            background-color: #800000;
-            color: #ffffff;
-            text-decoration: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 15px;
-        }
-        .footer {
-            margin-top: 35px;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
-            font-size: 13px;
-            color: #9ca3af;
-            text-align: center;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="university-header">
-            <h2>Polytechnic University of the Philippines</h2>
-            <p>ClassHub Scheduling System</p>
-        </div>
+@extends('emails.layout')
 
-        <div class="header">
-            <h1>Schedule Request Cancelled</h1>
-            <span class="status-badge">Cancelled</span>
-        </div>
+@section('title', 'Schedule Cancelled')
 
-        <p>Hello <strong>{{ $schedule->requester?->name ?? 'User' }}</strong>,</p>
+@section('content')
+    @php
+        $rows = [
+            'Room' => e($schedule->room?->room_number ?? 'Room'),
+            'Date' => e($schedule->start_time->format('l, F j, Y')),
+            'Time' => e($schedule->start_time->format('g:i A').' - '.$schedule->end_time->format('g:i A')),
+            'Subject/Course' => e($schedule->subject),
+            'Cancelled At' => e(now()->format('M j, Y g:i A')),
+        ];
+    @endphp
 
-        <p>This is a confirmation that your schedule request has been <strong>cancelled</strong>. Here are the details:</p>
+    <h1 class="email-heading" style="margin: 0 0 10px 0; color: #800000; font-size: 22px; line-height: 1.25;">Schedule Cancelled</h1>
+    @include('emails.partials.status-badge', ['status' => 'Cancelled', 'color' => 'gray'])
 
-        <table class="details-table">
-            <tr>
-                <td class="info-label">Room</td>
-                <td class="info-value">{{ $schedule->room?->room_number ?? 'Room' }}</td>
-            </tr>
-            <tr>
-                <td class="info-label">Date</td>
-                <td class="info-value">{{ $schedule->start_time->format('l, F j, Y') }}</td>
-            </tr>
-            <tr>
-                <td class="info-label">Time</td>
-                <td class="info-value">
-                    {{ $schedule->start_time->format('g:i A') }} - {{ $schedule->end_time->format('g:i A') }}
-                </td>
-            </tr>
-            <tr>
-                <td class="info-label">Subject/Course</td>
-                <td class="info-value">{{ $schedule->subject }}</td>
-            </tr>
-            <tr>
-                <td class="info-label">Cancelled At</td>
-                <td class="info-value">{{ now()->format('M j, Y g:i A') }}</td>
-            </tr>
-        </table>
+    <p style="margin: 20px 0 0 0; font-size: 15px; line-height: 1.6;">Hello <strong>{{ $schedule->requester?->name ?? 'User' }}</strong>,</p>
+    <p style="margin: 12px 0 0 0; font-size: 15px; line-height: 1.6;">This confirms that your schedule request has been cancelled.</p>
 
-        <div class="note">
-            <strong>ℹ️ Note:</strong> This cancellation is final and cannot be undone. If you need to schedule a new session, please submit a new request.
-        </div>
+    @include('emails.partials.details-table', ['rows' => $rows])
 
-        <div class="btn-container">
-            <a href="{{ config('app.url') }}/portal/request-schedule" class="btn">Book a New Schedule</a>
-        </div>
+    @include('emails.partials.callout', [
+        'title' => 'Note',
+        'content' => 'This cancellation is final and cannot be undone. If you still need the room, please submit a new request.',
+        'accent' => '#6b7280',
+        'background' => '#f9fafb',
+    ])
 
-        <div class="footer">
-            <p>This is an automated message from <strong>ClassHub - PUP</strong>.</p>
-            <p>Need help? Contact support for assistance.</p>
-        </div>
-    </div>
-</body>
-</html>
+    @include('emails.partials.button', [
+        'label' => 'Book a New Schedule',
+        'url' => config('app.url').'/portal/request-schedule',
+    ])
+@endsection
