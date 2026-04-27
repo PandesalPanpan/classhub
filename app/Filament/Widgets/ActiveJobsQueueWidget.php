@@ -33,13 +33,13 @@ class ActiveJobsQueueWidget extends TableWidget
                     ->sortable(),
                 TextColumn::make('reserved_at')
                     ->label('Reserved At')
-                    ->state(fn (QueueJob $record): string => $record->reserved_at ? Carbon::createFromTimestamp((int) $record->reserved_at)->toDateTimeString() : '-'),
+                    ->state(fn (QueueJob $record): string => $record->reserved_at ? Carbon::createFromTimestamp((int) $record->reserved_at, config('app.timezone'))->format('M j, Y g:i A') : '-'),
                 TextColumn::make('available_at')
                     ->label('Available At')
-                    ->state(fn (QueueJob $record): string => Carbon::createFromTimestamp((int) $record->available_at)->toDateTimeString()),
+                    ->state(fn (QueueJob $record): string => Carbon::createFromTimestamp((int) $record->available_at, config('app.timezone'))->format('M j, Y g:i A')),
                 TextColumn::make('created_at')
                     ->label('Created At')
-                    ->state(fn (QueueJob $record): string => Carbon::createFromTimestamp((int) $record->created_at)->toDateTimeString()),
+                    ->state(fn (QueueJob $record): string => Carbon::createFromTimestamp((int) $record->created_at, config('app.timezone'))->format('M j, Y g:i A')),
             ]);
     }
 }
