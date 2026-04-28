@@ -6,6 +6,7 @@ use App\KeyStatus;
 use App\Models\KeyEvent;
 use App\Models\Schedule;
 use App\Models\ScheduleHandover;
+use App\Models\Setting;
 use App\ScheduleStatus;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
@@ -60,6 +61,16 @@ class VerifyScheduleKeyUsageJob implements ShouldQueue, ShouldBeUniqueUntilProce
         }
 
         $key = $this->schedule->room->key;
+        $key->refresh();
+
+        if (in_array($key->status, [KeyStatus::Disabled, KeyStatus::Missing], true)) {
+            Log::info('VerifyScheduleKeyUsageJob: Key is disabled or missing, skipping verification', [
+                'schedule_id' => $this->schedule->id,
+                'key_status' => $key->status->value,
+            ]);
+
+            return;
+        }
 
         // Check for ANY USED event — IoT scan OR synthetic handover.
         // A synthetic event created by HandoverOperationalService is valid proof.
@@ -68,7 +79,7 @@ class VerifyScheduleKeyUsageJob implements ShouldQueue, ShouldBeUniqueUntilProce
             ->where(function ($query) {
                 $query->where('schedule_id', $this->schedule->id)
                     ->orWhereBetween('occurred_at', [
-                        $this->schedule->start_time->copy()->subMinutes(15),
+                        $this->schedule->start_time->copy()->subMinutes((int) Setting::get('early_key_pickup_minutes')),
                         $this->schedule->end_time,
                     ]);
             })

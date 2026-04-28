@@ -76,6 +76,21 @@ class VerifyScheduleKeyUsageJobTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_skips_when_key_is_missing(): void
+    {
+        Mail::fake();
+        Queue::fake();
+
+        [$schedule, $key] = $this->makeApprovedScheduleWithKey();
+        $key->update(['status' => KeyStatus::Missing]);
+
+        (new VerifyScheduleKeyUsageJob($schedule))->handle();
+
+        $this->assertSame(ScheduleStatus::Approved, $schedule->fresh()->status);
+
+        Queue::assertNothingPushed();
+    }
+
     public function test_recognizes_synthetic_handover_key_events(): void
     {
         Queue::fake();

@@ -37,6 +37,24 @@ class PostClassCheckJobTest extends TestCase
         $this->assertNotSame(KeyStatus::Missing, $key->fresh()->status);
     }
 
+    public function test_treats_stored_before_scheduled_end_as_returned_when_after_start(): void
+    {
+        Mail::fake();
+
+        [$schedule, $key] = $this->makeEndedScheduleWithKey();
+
+        KeyEvent::factory()->stored()->create([
+            'key_id' => $key->id,
+            'schedule_id' => $schedule->id,
+            'occurred_at' => $schedule->start_time->copy()->addMinutes(30),
+        ]);
+
+        (new PostClassCheckJob($schedule))->handle();
+
+        Mail::assertNothingQueued();
+        $this->assertNotSame(KeyStatus::Missing, $key->fresh()->status);
+    }
+
     public function test_finalizes_pending_handover_when_key_returned(): void
     {
         [$schedule, $key] = $this->makeEndedScheduleWithKey();

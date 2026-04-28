@@ -57,14 +57,14 @@ class EndOfClassJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
         $key = $this->schedule->room->key;
         $key->refresh();
 
-        if ($key->status === KeyStatus::Disabled) {
+        if (in_array($key->status, [KeyStatus::Disabled, KeyStatus::Missing], true)) {
             return;
         }
 
-        // If key was already returned (STORED event at/after end_time), nothing to hand over.
+        // STORED at/after class start (not only end) detects early returns before class ends.
         $wasReturned = KeyEvent::where('key_id', $key->id)
             ->where('status', KeyStatus::Stored->value)
-            ->where('occurred_at', '>=', $this->schedule->end_time)
+            ->where('occurred_at', '>=', $this->schedule->start_time)
             ->exists();
 
         if ($wasReturned) {
@@ -117,8 +117,6 @@ class EndOfClassJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
                 'next_schedule_id' => $nextSchedule->id,
                 'requester_id' => $this->schedule->requester_id,
             ]);
-
-            $this->dispatchPostClassCheck();
 
             return;
         }

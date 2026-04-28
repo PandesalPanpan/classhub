@@ -57,14 +57,14 @@ class PostClassCheckJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
         $key = $this->schedule->room->key;
         $key->refresh();
 
-        if ($key->status === KeyStatus::Disabled) {
+        if (in_array($key->status, [KeyStatus::Disabled, KeyStatus::Missing], true)) {
             return;
         }
 
-        // Step 1: Was the key returned? Check for a STORED event at/after class ended.
+        // STORED at/after class start (not only after end) detects early returns.
         $wasReturned = KeyEvent::where('key_id', $key->id)
             ->where('status', KeyStatus::Stored->value)
-            ->where('occurred_at', '>=', $this->schedule->end_time)
+            ->where('occurred_at', '>=', $this->schedule->start_time)
             ->exists();
 
         if ($wasReturned) {

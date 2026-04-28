@@ -99,6 +99,42 @@ class EndOfClassJobTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_detects_stored_event_after_start_even_if_before_scheduled_end(): void
+    {
+        Queue::fake();
+
+        [$schedule, $key] = $this->makeEndedScheduleWithKey();
+
+        KeyEvent::factory()->stored()->create([
+            'key_id' => $key->id,
+            'schedule_id' => $schedule->id,
+            'occurred_at' => $schedule->start_time->copy()->addMinutes(30),
+        ]);
+
+        (new EndOfClassJob($schedule))->handle();
+
+        Queue::assertNotPushed(PostClassCheckJob::class);
+    }
+
+    public function test_same_requester_back_to_back_does_not_dispatch_post_class_check(): void
+    {
+        Mail::fake();
+        Queue::fake();
+
+        [$schedule] = $this->makeEndedScheduleWithKey();
+
+        Schedule::factory()->approved()->create([
+            'room_id' => $schedule->room_id,
+            'requester_id' => $schedule->requester_id,
+            'start_time' => $schedule->end_time->copy(),
+            'end_time' => $schedule->end_time->copy()->addHour(),
+        ]);
+
+        (new EndOfClassJob($schedule))->handle();
+
+        Queue::assertNotPushed(PostClassCheckJob::class);
+    }
+
     public function test_does_not_duplicate_handover_records(): void
     {
         Queue::fake();
