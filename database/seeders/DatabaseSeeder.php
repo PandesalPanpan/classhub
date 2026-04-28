@@ -37,9 +37,9 @@ class DatabaseSeeder extends Seeder
             SettingsSeeder::class,
         ]);
 
-        // $this->call([
-        //     ScheduleSeeder::class,
-        // ]);
+        $this->call([
+            ScheduleSeeder::class,
+        ]);
 
     }
 }

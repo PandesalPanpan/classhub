@@ -18,7 +18,7 @@ class ScheduleSeeder extends Seeder
     public function run(): void
     {
         // Get the Class Representative user (requester)
-        $classUser = User::where('email', 'class@test.com')->first();
+        $classUser = User::where('email', 'seafire266@gmail.com')->first();
         if (! $classUser) {
             $this->command->error('Class Representative user not found. Please run UserSeeder first.');
 
@@ -26,7 +26,7 @@ class ScheduleSeeder extends Seeder
         }
 
         // Get the Admin user (approver) - using Moderator with Admin role
-        $adminUser = User::where('email', 'moderator@test.com')->first();
+        $adminUser = User::where('email', 'petermarticio@gmail.com')->first();
         if (! $adminUser) {
             $this->command->error('Admin user not found. Please run UserSeeder first.');
 

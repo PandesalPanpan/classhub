@@ -18,7 +18,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->string('room_type')->default(RoomType::Lecture->value);
             $table->unsignedInteger('capacity')->default(0);
-            $table->string('description')->nullable();            
+            $table->string('description')->nullable();
             $table->timestamps();
         });
     }

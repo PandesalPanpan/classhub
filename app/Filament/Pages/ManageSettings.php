@@ -5,24 +5,27 @@ namespace App\Filament\Pages;
 use App\Models\Setting;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
-use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Forms\Contracts\HasForms;
+use Filament\Forms\Components\MarkdownEditor;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Filament\Support\Icons\Heroicon;
 use Filament\Schemas\Components\Section;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Validator;
 
 class ManageSettings extends Page implements HasForms
 {
-    use InteractsWithForms;
     use HasPageShield;
+    use InteractsWithForms;
 
     protected static ?string $title = 'System Settings';
 
     protected static ?string $navigationLabel = 'Settings';
+
+    protected static \UnitEnum|string|null $navigationGroup = 'System';
 
     protected static ?int $navigationSort = 100;
 
@@ -41,8 +44,8 @@ class ManageSettings extends Page implements HasForms
     {
         return $form
             ->schema([
-                Section::make('Schedule and Handover Rules')
-                    ->description('Update scheduling and handover behavior used by jobs and validation rules.')
+                Section::make('Key Verification')
+                    ->description('Configure when and how the system verifies key usage during schedules.')
                     ->schema([
                         TextInput::make('key_usage_check_percent')
                             ->label('Key Usage Check Percent')
@@ -51,14 +54,31 @@ class ManageSettings extends Page implements HasForms
                             ->maxValue(0.9)
                             ->step(0.01)
                             ->required()
-                            ->helperText('Value between 0.10 and 0.90. For 30-minute schedules, this check should happen after the grace period to avoid timing conflicts.'),
+                            ->helperText('Value between 0.10 and 0.90. Fraction of schedule duration before the key usage verification job runs. E.g., 0.40 = 40% into a 1-hour class = 24 minutes.'),
+                        TextInput::make('early_key_pickup_minutes')
+                            ->label('Early Key Pickup Window (minutes)')
+                            ->numeric()
+                            ->integer()
+                            ->minValue(5)
+                            ->maxValue(60)
+                            ->required()
+                            ->helperText('How many minutes before scheduled start time to accept a USED key event as valid usage.'),
+                    ])
+                    ->columns([
+                        'default' => 1,
+                        'md' => 2,
+                    ]),
+                Section::make('Handover & Grace Period')
+                    ->description('Configure post-class handover window and grace period checks.')
+                    ->schema([
                         TextInput::make('handover_eligibility_window_minutes')
                             ->label('Handover Eligibility Window (minutes)')
                             ->numeric()
                             ->integer()
                             ->minValue(5)
                             ->maxValue(120)
-                            ->required(),
+                            ->required()
+                            ->helperText('After class end, this defines how many minutes ahead to look for the next approved schedule in the same room.'),
                         TextInput::make('grace_period_minutes')
                             ->label('Grace Period (minutes)')
                             ->numeric()
@@ -66,17 +86,37 @@ class ManageSettings extends Page implements HasForms
                             ->minValue(5)
                             ->maxValue(60)
                             ->required()
-                            ->helperText('If grace period is too high relative to key usage check percent, verification can run before handover resolution. Runtime deferral handles this, but lower grace is recommended.'),
+                            ->helperText('Minutes after class end before checking for key return. Must be less than or equal to the handover window.'),
+                    ])
+                    ->columns([
+                        'default' => 1,
+                        'md' => 2,
+                    ]),
+                Section::make('Feature Toggles')
+                    ->description('Enable or disable optional schedule and portal behaviors.')
+                    ->schema([
                         Toggle::make('handover_enabled')
                             ->label('Enable handover flow')
                             ->required(),
                         Toggle::make('allow_past_schedule_requests')
                             ->label('Allow past schedule requests')
                             ->required(),
+                        Toggle::make('allow_app_registration')
+                            ->label('Allow app panel self-registration')
+                            ->required(),
                     ])
                     ->columns([
                         'default' => 1,
-                        'md' => 2,
+                        'md' => 3,
+                    ]),
+                Section::make('Policy Page')
+                    ->description('Publish the public policy page content shown on /policy using Markdown.')
+                    ->schema([
+                        MarkdownEditor::make('policy_content')
+                            ->label('Policy Content')
+                            ->required()
+                            ->columnSpanFull()
+                            ->helperText('Supports headings, lists, links, and emphasis.'),
                     ]),
             ])
             ->statePath('data');
@@ -88,10 +128,13 @@ class ManageSettings extends Page implements HasForms
 
         $validator = Validator::make($data, [
             'key_usage_check_percent' => ['required', 'numeric', 'between:0.1,0.9'],
+            'early_key_pickup_minutes' => ['required', 'integer', 'between:5,60'],
             'handover_eligibility_window_minutes' => ['required', 'integer', 'between:5,120'],
             'grace_period_minutes' => ['required', 'integer', 'between:5,60', 'lte:handover_eligibility_window_minutes'],
             'handover_enabled' => ['required', 'boolean'],
             'allow_past_schedule_requests' => ['required', 'boolean'],
+            'allow_app_registration' => ['required', 'boolean'],
+            'policy_content' => ['required', 'string'],
         ], [
             'grace_period_minutes.lte' => 'The grace period must be less than or equal to the handover eligibility window.',
         ]);
@@ -120,7 +163,12 @@ class ManageSettings extends Page implements HasForms
                 ->send();
         }
 
-        Setting::current()->update($payload);
+        $settings = Setting::current();
+        if (($payload['policy_content'] ?? null) !== $settings->policy_content) {
+            $payload['policy_updated_at'] = now();
+        }
+
+        $settings->update($payload);
         Setting::refreshCache();
 
         Notification::make()

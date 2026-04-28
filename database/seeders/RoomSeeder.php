@@ -13,7 +13,7 @@ class RoomSeeder extends Seeder
     public function run(): void
     {
         $slotNumber = 1;
-        
+
         $rooms = [
             'CEA302',
             'CEA300',
@@ -27,7 +27,7 @@ class RoomSeeder extends Seeder
             'CEA413',
             'CEA207',
         ];
-        
+
         foreach ($rooms as $roomNumber) {
             $room = Room::firstOrCreate(
                 ['room_number' => $roomNumber],
@@ -37,7 +37,7 @@ class RoomSeeder extends Seeder
                     'capacity' => rand(30, 50),
                 ]
             );
-            
+
             Key::firstOrCreate(
                 ['room_id' => $room->id],
                 [
@@ -45,7 +45,7 @@ class RoomSeeder extends Seeder
                     'status' => KeyStatus::Disabled,
                 ]
             );
-            
+
             $slotNumber++;
         }
     }

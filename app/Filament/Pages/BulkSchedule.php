@@ -6,8 +6,10 @@ use App\Filament\Pages\Schemas\BulkScheduleForm;
 use App\Models\Schedule;
 use App\ScheduleStatus;
 use App\ScheduleType;
-use Carbon\Carbon;
+use App\Services\ScheduleOverlapChecker;
 use BackedEnum;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+use Carbon\Carbon;
 use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Actions\Contracts\HasActions;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -16,20 +18,16 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Concerns\InteractsWithFormActions;
 use Filament\Pages\Concerns\InteractsWithHeaderActions;
 use Filament\Pages\Page;
-use Filament\Support\Enums\ActionSize;
-use Illuminate\Support\Facades\Auth;
-use App\Services\ScheduleOverlapChecker;
-use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Facades\Auth;
 
-
-class BulkSchedule extends Page implements HasForms, HasActions
+class BulkSchedule extends Page implements HasActions, HasForms
 {
-    use InteractsWithForms;
-    use InteractsWithFormActions;
-    use InteractsWithHeaderActions;
-    use InteractsWithActions;
     use HasPageShield;
+    use InteractsWithActions;
+    use InteractsWithFormActions;
+    use InteractsWithForms;
+    use InteractsWithHeaderActions;
 
     protected static ?int $navigationSort = 2;
 
@@ -77,7 +75,7 @@ class BulkSchedule extends Page implements HasForms, HasActions
     public function create(): void
     {
         $data = $this->form->getState();
-        
+
         // Auto-fill requester_id and approver_id for admin
         if (Auth::check()) {
             $data['requester_id'] = Auth::id();
@@ -85,13 +83,14 @@ class BulkSchedule extends Page implements HasForms, HasActions
         }
 
         $schedules = $this->generateSchedules($data);
-        
+
         if (empty($schedules)) {
             Notification::make()
                 ->title('No schedules created')
                 ->body('No valid schedule occurrences could be generated with the provided settings.')
                 ->danger()
                 ->send();
+
             return;
         }
 
@@ -107,6 +106,7 @@ class BulkSchedule extends Page implements HasForms, HasActions
                     ->body('One or more occurrences overlap with existing schedules for this room.')
                     ->danger()
                     ->send();
+
                 return;
             }
         }
@@ -117,7 +117,7 @@ class BulkSchedule extends Page implements HasForms, HasActions
         }
 
         $count = count($schedules);
-        
+
         Notification::make()
             ->title('Bulk schedule created')
             ->body("Successfully created {$count} schedule(s).")
@@ -161,7 +161,7 @@ class BulkSchedule extends Page implements HasForms, HasActions
 
         while ($currentDate->lte($endDate) && $created < $maxCreated) {
             if (in_array($currentDate->dayOfWeek, $daysOfWeek, true)) {
-                $startDateTime = Carbon::parse($currentDate->toDateString() . ' ' . ($data['start_time'] ?? '00:00:00'));
+                $startDateTime = Carbon::parse($currentDate->toDateString().' '.($data['start_time'] ?? '00:00:00'));
                 $endDateTime = $startDateTime->copy()->addMinutes($duration);
 
                 $schedules[] = [

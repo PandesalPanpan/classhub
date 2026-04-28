@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Schedules;
 
 use App\Filament\Resources\Schedules\Pages\CreateSchedule;
 use App\Filament\Resources\Schedules\Pages\EditSchedule;
+use App\Filament\Resources\Schedules\Pages\ListScheduleActivities;
 use App\Filament\Resources\Schedules\Pages\ListSchedules;
 use App\Filament\Resources\Schedules\Pages\ViewSchedule;
 use App\Filament\Resources\Schedules\Schemas\ScheduleForm;
@@ -59,6 +60,7 @@ class ScheduleResource extends Resource
             'create' => CreateSchedule::route('/create'),
             'view' => ViewSchedule::route('/{record}'),
             'edit' => EditSchedule::route('/{record}/edit'),
+            'activities' => ListScheduleActivities::route('/{record}/activities'),
         ];
     }
 

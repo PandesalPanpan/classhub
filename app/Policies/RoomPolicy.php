@@ -37,34 +37,4 @@ class RoomPolicy
         return $authUser->can('Delete:Room');
     }
 
-    public function restore(AuthUser $authUser, Room $room): bool
-    {
-        return $authUser->can('Restore:Room');
-    }
-
-    public function forceDelete(AuthUser $authUser, Room $room): bool
-    {
-        return $authUser->can('ForceDelete:Room');
-    }
-
-    public function forceDeleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('ForceDeleteAny:Room');
-    }
-
-    public function restoreAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('RestoreAny:Room');
-    }
-
-    public function replicate(AuthUser $authUser, Room $room): bool
-    {
-        return $authUser->can('Replicate:Room');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Room');
-    }
-
 }

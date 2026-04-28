@@ -12,6 +12,7 @@ use App\Models\Schedule;
 use App\Models\ScheduleHandover;
 use App\ScheduleStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -144,6 +145,22 @@ class VerifyScheduleKeyUsageJobTest extends TestCase
 
         $this->assertSame(ScheduleStatus::Expired, $schedule->fresh()->status);
         Queue::assertNothingPushed();
+    }
+
+    public function test_logs_execution_with_retry_count(): void
+    {
+        [$schedule] = $this->makeApprovedScheduleWithKey();
+
+        Log::spy();
+
+        (new VerifyScheduleKeyUsageJob($schedule, 2))->handle();
+
+        Log::shouldHaveReceived('info')
+            ->with('VerifyScheduleKeyUsageJob: Running', [
+                'schedule_id' => $schedule->id,
+                'retry_count' => 2,
+            ])
+            ->once();
     }
 
     private function makeApprovedScheduleWithKey(): array

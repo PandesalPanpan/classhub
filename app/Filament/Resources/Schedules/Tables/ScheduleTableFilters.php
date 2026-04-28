@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources\Schedules\Tables;
 
-use App\ScheduleStatus;
 use App\Models\Schedule;
+use App\ScheduleStatus;
 use Carbon\Carbon;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Tables\Filters\Filter;
@@ -40,10 +40,10 @@ class ScheduleTableFilters
     public static function statusFilter(bool $defaultPendingStatus = true): SelectFilter
     {
         return SelectFilter::make('status')
-        ->options(ScheduleStatus::class)
-        ->multiple()
-        ->label('Status')
-        ->default($defaultPendingStatus ? [ScheduleStatus::Pending] : null);
+            ->options(ScheduleStatus::class)
+            ->multiple()
+            ->label('Status')
+            ->default($defaultPendingStatus ? [ScheduleStatus::Pending] : null);
     }
 
     public static function roomFilter(): SelectFilter

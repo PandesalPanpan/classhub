@@ -2,8 +2,6 @@
 
 namespace App\Services;
 
-use App\Jobs\PostClassCheckJob;
-use App\Jobs\VerifyScheduleKeyUsageJob;
 use App\KeyStatus;
 use App\Models\KeyEvent;
 use App\Models\ScheduleHandover;
@@ -13,7 +11,7 @@ class HandoverOperationalService
 {
     /**
      * Apply the confirmed handover: update key state, create a synthetic USED event
-     * for the next schedule, and chain verification/post-class jobs for the next slot.
+    * for the next schedule, then finalize the handover.
      */
     public static function apply(ScheduleHandover $handover): void
     {
@@ -62,22 +60,6 @@ class HandoverOperationalService
             'key_id' => $key->id,
             'next_schedule_id' => $nextSchedule->id,
         ]);
-
-        // Chain VerifyScheduleKeyUsageJob for B (if still in the future).
-        $verifyRunAt = $nextSchedule->getFortyPercentDurationPoint();
-        if ($verifyRunAt->isFuture()) {
-            VerifyScheduleKeyUsageJob::dispatch($nextSchedule)->delay($verifyRunAt);
-        } else {
-            VerifyScheduleKeyUsageJob::dispatch($nextSchedule);
-        }
-
-        // Chain PostClassCheckJob for B.
-        $postClassRunAt = $nextSchedule->getPostClassCheckRunAt();
-        if ($postClassRunAt->isFuture()) {
-            PostClassCheckJob::dispatch($nextSchedule)->delay($postClassRunAt);
-        } else {
-            PostClassCheckJob::dispatch($nextSchedule);
-        }
 
         $handover->markFinalized();
     }

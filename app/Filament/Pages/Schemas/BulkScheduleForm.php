@@ -4,16 +4,15 @@ namespace App\Filament\Pages\Schemas;
 
 use App\Models\Room;
 use App\ScheduleStatus;
-use App\Services\ScheduleOverlapChecker;
 use App\ScheduleType;
+use App\Services\ScheduleOverlapChecker;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
-use Filament\Schemas\Components\Fieldset;
 use Filament\Infolists\Components\TextEntry;
-use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Carbon;
@@ -41,11 +40,11 @@ class BulkScheduleForm
                 ->schema([
                     Select::make('room_id')
                         ->label('Room')
-                        ->options(fn() => Room::query()
+                        ->options(fn () => Room::query()
                             ->where('is_active', true)
                             ->orderBy('room_number')
                             ->get()
-                            ->mapWithKeys(fn($room) => [$room->id => $room->room_full_label ?? $room->room_number])
+                            ->mapWithKeys(fn ($room) => [$room->id => $room->room_full_label ?? $room->room_number])
                             ->toArray())
                         ->searchable()
                         ->preload(true)
@@ -142,7 +141,7 @@ class BulkScheduleForm
                                 ->native(false)
                                 ->displayFormat('F j Y')
                                 ->format('Y-m-d')
-                                ->minDate(fn(Get $get) => $get('semester_start_date') ? Carbon::parse($get('semester_start_date'))->format('Y-m-d') : null)
+                                ->minDate(fn (Get $get) => $get('semester_start_date') ? Carbon::parse($get('semester_start_date'))->format('Y-m-d') : null)
                                 ->helperText('When should the schedule generation end? (e.g., end of semester)')
                                 ->live(onBlur: true),
                         ])
@@ -164,13 +163,13 @@ class BulkScheduleForm
 
                     Select::make('status')
                         ->label('Status')
-                        ->options(fn(Get $get) => self::isTemplateType($get('type'))
+                        ->options(fn (Get $get) => self::isTemplateType($get('type'))
                             ? [
                                 ScheduleStatus::Approved->value => 'Approved',
                             ]
                             : ScheduleStatus::class)
                         ->default(ScheduleStatus::Approved->value)
-                        ->disabled(fn(Get $get) => self::isTemplateType($get('type')))
+                        ->disabled(fn (Get $get) => self::isTemplateType($get('type')))
                         ->required()
                         ->helperText('Initial status for all created schedules'),
 
@@ -186,9 +185,9 @@ class BulkScheduleForm
                 ->schema([
                     TextEntry::make('schedule_preview')
                         ->label('')
-                        ->state(fn(Get $get) => self::generatePreview($get)),
+                        ->state(fn (Get $get) => self::generatePreview($get)),
                 ])
-                ->visible(fn(Get $get) => self::canShowPreview($get)),
+                ->visible(fn (Get $get) => self::canShowPreview($get)),
         ];
     }
 
@@ -200,7 +199,7 @@ class BulkScheduleForm
         $startTime = $get('start_time');
         $duration = $get('duration_minutes');
 
-        return !empty($daysOfWeek) && $startDate && $endDate && $startTime && $duration;
+        return ! empty($daysOfWeek) && $startDate && $endDate && $startTime && $duration;
     }
 
     protected static function generatePreview(Get $get): HtmlString
@@ -226,7 +225,7 @@ class BulkScheduleForm
         }
 
         // Check for conflicts if room is selected
-        if ($data['room_id'] && !empty($preview['schedules'])) {
+        if ($data['room_id'] && ! empty($preview['schedules'])) {
             $preview = self::checkConflicts($preview, $data['room_id']);
         }
 
@@ -245,7 +244,7 @@ class BulkScheduleForm
         $duration = (int) ($data['duration_minutes'] ?? 60);
 
         $daysOfWeek = collect($data['days_of_week'] ?? [])
-            ->map(fn($v) => (int) $v)
+            ->map(fn ($v) => (int) $v)
             ->unique()
             ->values()
             ->all();
@@ -276,13 +275,13 @@ class BulkScheduleForm
         // Collect all schedules
         while ($currentDate->lte($endDate)) {
             if (in_array($currentDate->dayOfWeek, $daysOfWeek, true)) {
-                $startDateTime = Carbon::parse($currentDate->toDateString() . ' ' . ($data['start_time'] ?? '00:00:00'));
+                $startDateTime = Carbon::parse($currentDate->toDateString().' '.($data['start_time'] ?? '00:00:00'));
                 $endDateTime = $startDateTime->copy()->addMinutes($duration);
 
                 $schedules[] = [
                     'date' => $currentDate->format('F j, Y'),
                     'day' => $dayNames[$currentDate->dayOfWeek] ?? '',
-                    'time' => $startDateTime->format('g:i A') . ' - ' . $endDateTime->format('g:i A'),
+                    'time' => $startDateTime->format('g:i A').' - '.$endDateTime->format('g:i A'),
                     'start_time' => $startDateTime,
                     'end_time' => $endDateTime,
                     'has_conflict' => false,
@@ -306,7 +305,7 @@ class BulkScheduleForm
 
         // Prepare time ranges for batch checking
         $timeRanges = collect($preview['schedules'])
-            ->map(fn($schedule) => [
+            ->map(fn ($schedule) => [
                 'start_time' => $schedule['start_time'],
                 'end_time' => $schedule['end_time'],
             ])
@@ -317,7 +316,7 @@ class BulkScheduleForm
 
         // Mark conflicts in preview schedules
         foreach ($preview['schedules'] as $index => $schedule) {
-            $rangeKey = $schedule['start_time']->toIso8601String() . '-' . $schedule['end_time']->toIso8601String();
+            $rangeKey = $schedule['start_time']->toIso8601String().'-'.$schedule['end_time']->toIso8601String();
 
             if (isset($conflicts[$rangeKey])) {
                 $existingSchedule = $conflicts[$rangeKey];
@@ -329,13 +328,13 @@ class BulkScheduleForm
                     $conflictParts[] = $existingSchedule->subject;
                 }
                 if ($existingSchedule->program_year_section) {
-                    $conflictParts[] = '(' . $existingSchedule->program_year_section . ')';
+                    $conflictParts[] = '('.$existingSchedule->program_year_section.')';
                 }
                 if ($existingSchedule->instructor) {
-                    $conflictParts[] = '- ' . $existingSchedule->instructor;
+                    $conflictParts[] = '- '.$existingSchedule->instructor;
                 }
 
-                $preview['schedules'][$index]['conflict_with'] = !empty($conflictParts)
+                $preview['schedules'][$index]['conflict_with'] = ! empty($conflictParts)
                     ? implode(' ', $conflictParts)
                     : 'Existing Schedule';
             }

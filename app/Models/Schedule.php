@@ -6,6 +6,7 @@ use App\Jobs\VerifyScheduleKeyUsageJob;
 use App\ScheduleStatus;
 use App\ScheduleType;
 use App\Services\EmailNotificationService;
+use App\Services\ScheduleOverlapChecker;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -15,10 +16,25 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Schedule extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
+
+    protected static string $logName = 'schedule';
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['status', 'subject', 'instructor', 'program_year_section', 'start_time', 'end_time', 'room_id', 'requester_id', 'remarks', 'type'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn (string $eventName): string => "Schedule was {$eventName}")
+            ->useLogName(static::$logName);
+    }
 
     /**
      * Scope: pending schedules that match the exact room and time slot.
@@ -59,6 +75,18 @@ class Schedule extends Model
 
     public function approve(): void
     {
+        if (ScheduleOverlapChecker::hasOverlap(
+            $this->room_id,
+            $this->start_time->copy(),
+            $this->end_time->copy(),
+            [ScheduleStatus::Approved],
+            $this->id
+        )) {
+            throw ValidationException::withMessages([
+                'room_id' => 'This room already has an approved schedule during the selected time.',
+            ]);
+        }
+
         $this->update([
             'status' => ScheduleStatus::Approved,
             'approver_id' => Auth::id(),
@@ -113,6 +141,12 @@ class Schedule extends Model
         $runAt = $this->getFortyPercentDurationPoint();
         if ($runAt->isFuture()) {
             VerifyScheduleKeyUsageJob::dispatch($this)->delay($runAt);
+
+            return;
+        }
+
+        if ($this->start_time->isPast() && $this->end_time->isFuture()) {
+            VerifyScheduleKeyUsageJob::dispatch($this)->delay(now()->addMinutes(2));
 
             return;
         }
