@@ -1,6 +1,23 @@
 @import '../../../../vendor/filament/filament/resources/css/theme.css';
+@import '../../../../vendor/saade/filament-fullcalendar/resources/css/filament-fullcalendar.css';
 
 @source '../../../../app/Filament/**/*';
 @source '../../../../resources/views/filament/**/*';
 
 @source '../../../../vendor/diogogpinto/filament-auth-ui-enhancer/resources/**/*.blade.php';
+@source '../../../../vendor/saade/filament-fullcalendar/resources/views/**/*.blade.php';
+
+/* Fix dark-mode contrast for day/date headers in CalendarWidget */
+html.dark .filament-fullcalendar .fc-col-header-cell,
+html.dark .filament-fullcalendar .fc-scrollgrid-section-header th,
+html.dark .filament-fullcalendar .fc-timegrid-axis {
+    background-color: #111827 !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+html.dark .filament-fullcalendar .fc-col-header-cell-cushion,
+html.dark .filament-fullcalendar a.fc-col-header-cell-cushion,
+html.dark .filament-fullcalendar .fc-timegrid-axis-cushion,
+html.dark .filament-fullcalendar .fc-toolbar-title {
+    color: #e5e7eb !important;
+}

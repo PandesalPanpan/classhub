@@ -1,4 +1,5 @@
 @import '../../../../vendor/filament/filament/resources/css/theme.css';
+@import '../../../../vendor/pxlrbt/filament-activity-log/resources/css/styles.css';
 
 @source '../../../../app/Filament/**/*';
 @source '../../../../resources/views/filament/**/*';
@@ -6,6 +7,7 @@
 @source '../../../../vendor/diogogpinto/filament-auth-ui-enhancer/resources/**/*.blade.php';
 @import '../../../../vendor/saade/filament-fullcalendar/resources/css/filament-fullcalendar.css';
 @source '../../../../vendor/saade/filament-fullcalendar/resources/views/**/*.blade.php';
+@source '../../../../vendor/pxlrbt/filament-activity-log/resources/views/**/*.blade.php';
 
 /* Fix dark-mode contrast for top day/date headers (e.g. Mon 4/20) in CalendarWidget */
 html.dark .filament-fullcalendar .fc-col-header-cell,
