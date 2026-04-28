@@ -18,6 +18,18 @@ class UsersTable
                 TextColumn::make('name'),
                 TextColumn::make('email')
                     ->searchable(),
+                TextColumn::make('mobile_number')
+                    ->label('Mobile')
+                    ->searchable()
+                    ->placeholder('—')
+                    ->copyable(),
+                TextColumn::make('messenger_link')
+                    ->label('Messenger')
+                    ->searchable()
+                    ->placeholder('—')
+                    ->url(fn ($state) => $state, shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn ($state) => $state ? 'Open' : null)
+                    ->color('primary'),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
