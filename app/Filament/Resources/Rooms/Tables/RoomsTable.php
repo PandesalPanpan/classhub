@@ -3,8 +3,10 @@
 namespace App\Filament\Resources\Rooms\Tables;
 
 use App\KeyStatus;
+use App\Models\KeyEvent;
 use App\Models\Room;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -14,6 +16,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class RoomsTable
@@ -133,9 +136,87 @@ class RoomsTable
                             ->success()
                             ->send();
                     }),
+                Action::make('markKeyReturned')
+                    ->label('Key Returned')
+                    ->icon('heroicon-o-arrow-uturn-down')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Mark Key as Returned')
+                    ->modalDescription('Set the key status to STORED and record a manual return event at the current time.')
+                    ->visible(fn (Room $record): bool => $record->key !== null && in_array($record->key->status, [
+                        KeyStatus::Missing,
+                        KeyStatus::Used,
+                        KeyStatus::HandedOver,
+                    ], true))
+                    ->action(function (Room $record): void {
+                        $key = $record->key;
+
+                        if (! $key) {
+                            return;
+                        }
+
+                        KeyEvent::create([
+                            'key_id' => $key->id,
+                            'schedule_id' => $record->getCurrentKeySchedule()?->id,
+                            'status' => KeyStatus::Stored->value,
+                            'source' => 'manual',
+                            'occurred_at' => now(),
+                        ]);
+
+                        $key->update(['status' => KeyStatus::Stored]);
+
+                        Notification::make()
+                            ->title('Key marked as returned')
+                            ->success()
+                            ->send();
+                    }),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    BulkAction::make('bulkDisableKeys')
+                        ->label('Disable Selected Keys')
+                        ->icon('heroicon-o-lock-closed')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Bulk Disable Key Tracking')
+                        ->modalDescription('This will disable key tracking for all selected rooms. Use this during IoT scanner outages to prevent cascading schedule expirations.')
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records): void {
+                            $count = 0;
+                            $records->each(function (Room $record) use (&$count): void {
+                                if ($record->key && $record->key->status !== KeyStatus::Disabled) {
+                                    $record->key->update(['status' => KeyStatus::Disabled]);
+                                    $count++;
+                                }
+                            });
+
+                            Notification::make()
+                                ->title("{$count} key(s) disabled")
+                                ->success()
+                                ->send();
+                        }),
+                    BulkAction::make('bulkEnableKeys')
+                        ->label('Enable Selected Keys')
+                        ->icon('heroicon-o-lock-open')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Bulk Enable Key Tracking')
+                        ->modalDescription('This will re-enable key tracking for all selected rooms and set their keys to STORED.')
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records): void {
+                            $count = 0;
+                            $records->each(function (Room $record) use (&$count): void {
+                                if ($record->key && $record->key->status === KeyStatus::Disabled) {
+                                    $record->key->update(['status' => KeyStatus::Stored]);
+                                    $count++;
+                                }
+                            });
+
+                            Notification::make()
+                                ->title("{$count} key(s) re-enabled")
+                                ->success()
+                                ->send();
+                        }),
                     DeleteBulkAction::make(),
                 ]),
             ]);
