@@ -49,6 +49,52 @@ class ScheduleColumns
             ->searchable();
     }
 
+    public static function handoverStatus(): TextColumn
+    {
+        return TextColumn::make('handover_status')
+            ->label('Handover')
+            ->getStateUsing(function (Schedule $record): ?string {
+                $asPrev = $record->handoverAsPrevious;
+                $asNext = $record->handoverAsNext;
+
+                if ($asPrev) {
+                    if ($asPrev->resolution_finalized_at && $asPrev->isBothConfirmed()) {
+                        return 'Handed Over →';
+                    }
+                    if (! $asPrev->resolution_finalized_at && $asPrev->hasAnyDispute()) {
+                        return 'Disputed →';
+                    }
+                    if (! $asPrev->resolution_finalized_at) {
+                        return 'Pending →';
+                    }
+
+                    return 'Finalized →';
+                }
+
+                if ($asNext) {
+                    if ($asNext->resolution_finalized_at && $asNext->isBothConfirmed()) {
+                        return '← Received';
+                    }
+                    if (! $asNext->resolution_finalized_at) {
+                        return '← Pending';
+                    }
+
+                    return '← Finalized';
+                }
+
+                return null;
+            })
+            ->badge()
+            ->color(fn (?string $state) => match ($state) {
+                'Handed Over →', '← Received' => 'success',
+                'Pending →', '← Pending' => 'warning',
+                'Disputed →' => 'danger',
+                default => 'gray',
+            })
+            ->placeholder('—')
+            ->toggleable(isToggledHiddenByDefault: true);
+    }
+
     /**
      * Get a configured room number column for schedule tables.
      *

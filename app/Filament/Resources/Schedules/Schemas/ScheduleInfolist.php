@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Schedules\Schemas;
 
+use App\Models\Schedule;
+use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -36,6 +38,14 @@ class ScheduleInfolist
                         TextEntry::make('requester.name')
                             ->label('Requester')
                             ->placeholder('-'),
+                        TextEntry::make('requester.mobile_number')
+                            ->label('Mobile')
+                            ->placeholder('—')
+                            ->copyable(),
+                        TextEntry::make('requester.messenger_link')
+                            ->label('Messenger')
+                            ->placeholder('—')
+                            ->url(fn (?string $state): ?string => filled($state) ? $state : null, shouldOpenInNewTab: true),
                         TextEntry::make('approver.name')
                             ->label('Approver')
                             ->placeholder('-'),
@@ -55,6 +65,34 @@ class ScheduleInfolist
                         'default' => 1,
                         'md' => 2,
                     ]),
+                Section::make('Key Events')
+                    ->schema([
+                        RepeatableEntry::make('keyEvents')
+                            ->schema([
+                                TextEntry::make('status')
+                                    ->badge(),
+                                TextEntry::make('source')
+                                    ->badge()
+                                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                                        'manual' => 'Manual',
+                                        'synthetic' => 'Synthetic',
+                                        'iot' => 'IoT',
+                                        default => $state ?? '—',
+                                    })
+                                    ->color(fn (?string $state): string => match ($state) {
+                                        'manual' => 'info',
+                                        'synthetic' => 'warning',
+                                        'iot' => 'gray',
+                                        default => 'gray',
+                                    }),
+                                TextEntry::make('occurred_at')
+                                    ->dateTime('M j, Y g:iA'),
+                            ])
+                            ->columns(3),
+                    ])
+                    ->visible(fn (Schedule $record) => $record->keyEvents->isNotEmpty())
+                    ->collapsible()
+                    ->collapsed(),
                 Section::make('Additional Information')
                     ->schema([
                         TextEntry::make('remarks')
