@@ -6,13 +6,14 @@ use App\Models\Schedule;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Concerns\FromQuery;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ScheduleExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMapping, WithStyles
+class ScheduleExport implements FromQuery, WithColumnWidths, WithHeadings, WithMapping, WithStyles
 {
     private int $rowIndex = 0;
 
@@ -31,11 +32,27 @@ class ScheduleExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMap
             'Time',
             'Room',
             'Subject',
-            'Program / Year / Section',
+            'Prog / Yr / Sec',
             'Instructor',
-            'Class Representative',
+            'Class Rep',
             'Status',
             'Remarks',
+        ];
+    }
+
+    public function columnWidths(): array
+    {
+        return [
+            'A' => 5,
+            'B' => 14,
+            'C' => 22,
+            'D' => 10,
+            'E' => 20,
+            'F' => 22,
+            'G' => 20,
+            'H' => 20,
+            'I' => 12,
+            'J' => 14,
         ];
     }
 
@@ -59,8 +76,21 @@ class ScheduleExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMap
 
     public function styles(Worksheet $sheet): array
     {
+        $sheet->getPageSetup()
+            ->setOrientation(PageSetup::ORIENTATION_LANDSCAPE)
+            ->setPaperSize(PageSetup::PAPERSIZE_A4)
+            ->setFitToWidth(1)
+            ->setFitToHeight(0);
+
+        $sheet->getDefaultStyle()->getFont()->setSize(10);
+
+        $lastRow = $sheet->getHighestRow();
+        if ($lastRow > 1) {
+            $sheet->getStyle("E2:J{$lastRow}")->getAlignment()->setWrapText(true);
+        }
+
         return [
-            1 => ['font' => ['bold' => true]],
+            1 => ['font' => ['bold' => true, 'size' => 10]],
         ];
     }
 
