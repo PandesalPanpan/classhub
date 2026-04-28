@@ -6,9 +6,9 @@ use App\KeyStatus;
 use App\Models\KeyEvent;
 use App\Models\Schedule;
 use App\Models\ScheduleHandover;
-use App\Models\Setting;
 use App\ScheduleStatus;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -16,11 +16,13 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class VerifyScheduleKeyUsageJob implements ShouldQueue
+class VerifyScheduleKeyUsageJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public const MAX_HANDOVER_DEFER_RETRIES = 3;
+
+    public int $uniqueFor = 3600;
 
     public function __construct(
         public Schedule $schedule,
@@ -34,8 +36,18 @@ class VerifyScheduleKeyUsageJob implements ShouldQueue
         ];
     }
 
+    public function uniqueId(): string
+    {
+        return "verify_key_usage:{$this->schedule->id}";
+    }
+
     public function handle(): void
     {
+        Log::info('VerifyScheduleKeyUsageJob: Running', [
+            'schedule_id' => $this->schedule->id,
+            'retry_count' => $this->retryCount,
+        ]);
+
         $this->schedule->refresh();
         $this->schedule->load('room.key');
 
@@ -56,7 +68,7 @@ class VerifyScheduleKeyUsageJob implements ShouldQueue
             ->where(function ($query) {
                 $query->where('schedule_id', $this->schedule->id)
                     ->orWhereBetween('occurred_at', [
-                        $this->schedule->start_time->copy()->subMinutes((int) Setting::get('early_key_pickup_minutes')),
+                        $this->schedule->start_time->copy()->subMinutes(15),
                         $this->schedule->end_time,
                     ]);
             })

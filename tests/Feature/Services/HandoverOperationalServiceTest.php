@@ -2,8 +2,6 @@
 
 namespace Tests\Feature\Services;
 
-use App\Jobs\PostClassCheckJob;
-use App\Jobs\VerifyScheduleKeyUsageJob;
 use App\KeyStatus;
 use App\Models\Key;
 use App\Models\Room;
@@ -44,7 +42,7 @@ class HandoverOperationalServiceTest extends TestCase
         ]);
     }
 
-    public function test_chains_verify_and_post_class_jobs_for_next_schedule(): void
+    public function test_does_not_dispatch_jobs_for_next_schedule(): void
     {
         Queue::fake();
 
@@ -52,8 +50,7 @@ class HandoverOperationalServiceTest extends TestCase
 
         HandoverOperationalService::apply($handover);
 
-        Queue::assertPushed(VerifyScheduleKeyUsageJob::class);
-        Queue::assertPushed(PostClassCheckJob::class);
+        Queue::assertNothingPushed();
     }
 
     public function test_marks_handover_as_finalized(): void
@@ -63,6 +60,23 @@ class HandoverOperationalServiceTest extends TestCase
         HandoverOperationalService::apply($handover);
 
         $this->assertNotNull($handover->fresh()->resolution_finalized_at);
+    }
+
+    public function test_creates_synthetic_event_and_finalizes_handover(): void
+    {
+        $handover = $this->makeHandoverWithSharedRoom();
+
+        HandoverOperationalService::apply($handover);
+
+        $refreshed = $handover->fresh();
+
+        $this->assertNotNull($refreshed->resolution_finalized_at);
+        $this->assertDatabaseHas('key_events', [
+            'key_id' => $refreshed->previousSchedule->room->key->id,
+            'schedule_id' => $refreshed->next_schedule_id,
+            'status' => KeyStatus::Used->value,
+            'source' => 'synthetic',
+        ]);
     }
 
     private function makeHandoverWithSharedRoom(): ScheduleHandover

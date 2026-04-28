@@ -11,6 +11,7 @@ use App\ScheduleStatus;
 use App\Services\EmailNotificationService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -18,9 +19,11 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class EndOfClassJob implements ShouldQueue
+class EndOfClassJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public int $uniqueFor = 3600;
 
     public function __construct(
         public Schedule $schedule
@@ -31,6 +34,11 @@ class EndOfClassJob implements ShouldQueue
         return [
             new WithoutOverlapping("end_of_class:{$this->schedule->id}"),
         ];
+    }
+
+    public function uniqueId(): string
+    {
+        return "end_of_class:{$this->schedule->id}";
     }
 
     public function handle(): void
