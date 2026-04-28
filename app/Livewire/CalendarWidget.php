@@ -63,7 +63,7 @@ class CalendarWidget extends FullCalendarWidget
 
         return [
             CreateAction::make()
-                ->authorize(fn () => Auth::check() && Auth::user()->can('Create:Schedule'))
+                ->authorize(fn() => Auth::check() && Auth::user()->can('Create:Schedule'))
                 ->mountUsing(function ($form, array $arguments) {
                     $this->matchingPendingSchedules = collect();
 
@@ -102,7 +102,7 @@ class CalendarWidget extends FullCalendarWidget
                         }
 
                         // Fallback to filterRoom if no resource was selected
-                        if (! $roomId && $this->filterRoom) {
+                        if (!$roomId && $this->filterRoom) {
                             $roomNumber = str_replace('room-', '', $this->filterRoom);
                             $room = Room::where('room_number', $roomNumber)->first();
                             if ($room) {
@@ -148,12 +148,12 @@ class CalendarWidget extends FullCalendarWidget
                 })
                 ->mutateDataUsing(function (array $data): array {
                     // Auto-fill requester_id with currently logged-in user
-                    if (Auth::check() && ! isset($data['requester_id'])) {
+                    if (Auth::check() && !isset($data['requester_id'])) {
                         $data['requester_id'] = Auth::id();
                     }
 
                     // Note: approver_id is typically set when approving/rejecting, not during creation
-                    if ($this->isAdminPanel() && Auth::check() && ! isset($data['approver_id'])) {
+                    if ($this->isAdminPanel() && Auth::check() && !isset($data['approver_id'])) {
                         $data['approver_id'] = Auth::id();
                         $data['status'] = ScheduleStatus::Approved;
                     }
@@ -172,7 +172,7 @@ class CalendarWidget extends FullCalendarWidget
                     // Overlap validation.
                     // App panel request flow should only block when an approved schedule exists,
                     // while admin flow keeps stricter overlap checks.
-                    if (! empty($data['room_id']) && isset($data['start_time'], $data['end_time'])) {
+                    if (!empty($data['room_id']) && isset($data['start_time'], $data['end_time'])) {
                         $blockingStatuses = $this->isAppPanel()
                             ? [ScheduleStatus::Approved]
                             : [ScheduleStatus::Approved, ScheduleStatus::Pending];
@@ -219,7 +219,7 @@ class CalendarWidget extends FullCalendarWidget
                     $schedule = Schedule::create($data);
 
                     // Send notification if a pending schedule was created (app panel)
-                    if (! $this->isAdminPanel() && $schedule->status === ScheduleStatus::Pending) {
+                    if (!$this->isAdminPanel() && $schedule->status === ScheduleStatus::Pending) {
                         ScheduleNotificationService::notifyPendingCreated($schedule);
                         EmailNotificationService::sendScheduleCreatedConfirmation($schedule);
                     }
@@ -236,42 +236,16 @@ class CalendarWidget extends FullCalendarWidget
                 ->action(function () {
                     $this->dispatch('filament-fullcalendar--refresh');
                 }),
-            ActionGroup::make([
-                Action::make('filterRoomAll')
-                    ->label('All Rooms')
-                    ->icon($roomNumber ? null : 'heroicon-o-check')
-                    ->action(function () {
-                        $this->filterRoom = null;
-                        $this->dispatch('filament-fullcalendar--refresh');
-                    }),
-                ...Room::query()
-                    ->orderBy('room_number')
-                    ->pluck('room_number')
-                    ->map(fn (string $roomNum): Action => Action::make("filterRoom_{$roomNum}")
-                        ->label($roomNum)
-                        ->icon($roomNumber === $roomNum ? 'heroicon-o-check' : null)
-                        ->action(function () use ($roomNum) {
-                            $this->filterRoom = "room-{$roomNum}";
-                            $this->dispatch('filament-fullcalendar--refresh');
-                        }))
-                    ->values()
-                    ->all(),
-            ])
-                ->label($label)
-                ->icon('heroicon-o-funnel')
-                ->color($roomNumber ? 'primary' : 'gray')
-                ->badge($roomNumber ? null : 'All')
-                ->button(),
             Action::make('findAvailableRooms')
                 ->label('Find rooms')
                 ->icon('heroicon-o-magnifying-glass')
                 ->color('gray')
-                ->visible(fn () => $this->isAdminPanel())
-                ->authorize(fn () => Auth::check() && Auth::user()->can('View:Schedule'))
+                ->visible(fn() => $this->isAdminPanel())
+                ->authorize(fn() => Auth::check() && Auth::user()->can('View:Schedule'))
                 ->modalHeading('Find available rooms')
                 ->modalSubmitActionLabel('Find rooms')
                 ->modalWidth('xl')
-                ->form(fn () => FindAvailableRoomsForm::schema($this))
+                ->form(fn() => FindAvailableRoomsForm::schema($this))
                 ->mountUsing(function (): void {
                     $this->findAvailableRoomsResults = [];
                     $idx = array_key_last($this->mountedActions);
@@ -290,11 +264,11 @@ class CalendarWidget extends FullCalendarWidget
                     $startTime = $data['start_time'] ?? null;
                     $durationMinutes = isset($data['duration_minutes']) ? (int) $data['duration_minutes'] : null;
 
-                    if (! $date || ! $startTime || $durationMinutes === null) {
+                    if (!$date || !$startTime || $durationMinutes === null) {
                         return;
                     }
 
-                    $start = Carbon::parse($date.' '.$startTime);
+                    $start = Carbon::parse($date . ' ' . $startTime);
                     $end = $start->copy()->addMinutes($durationMinutes);
 
                     $conflictingByRoom = Schedule::query()
@@ -333,21 +307,47 @@ class CalendarWidget extends FullCalendarWidget
                     $this->findAvailableRoomsResults = $results;
 
                     $idx = array_key_last($this->mountedActions);
-                    if ($idx !== null && isset($this->cachedSchemas['mountedActionSchema'.$idx])) {
-                        unset($this->cachedSchemas['mountedActionSchema'.$idx]);
+                    if ($idx !== null && isset($this->cachedSchemas['mountedActionSchema' . $idx])) {
+                        unset($this->cachedSchemas['mountedActionSchema' . $idx]);
                     }
 
                     throw new Halt;
                 }),
             Action::make('showValidPendingSchedules')
-                ->label(fn () => $this->showValidPendingSchedules ? 'Hide valid pending' : 'Show valid pending')
-                ->icon(fn () => $this->showValidPendingSchedules ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
+                ->label(fn() => $this->showValidPendingSchedules ? 'Hide valid pending' : 'Show valid pending')
+                ->icon(fn() => $this->showValidPendingSchedules ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
                 ->color($this->showValidPendingSchedules ? 'primary' : 'gray')
-                ->visible(fn () => $this->isAdminPanel())
+                ->visible(fn() => $this->isAdminPanel())
                 ->action(function () {
-                    $this->showValidPendingSchedules = ! $this->showValidPendingSchedules;
+                    $this->showValidPendingSchedules = !$this->showValidPendingSchedules;
                     $this->dispatch('filament-fullcalendar--refresh');
                 }),
+            ActionGroup::make([
+                Action::make('filterRoomAll')
+                    ->label('All Rooms')
+                    ->icon($roomNumber ? null : 'heroicon-o-check')
+                    ->action(function () {
+                        $this->filterRoom = null;
+                        $this->dispatch('filament-fullcalendar--refresh');
+                    }),
+                ...Room::query()
+                    ->orderBy('room_number')
+                    ->pluck('room_number')
+                    ->map(fn(string $roomNum): Action => Action::make("filterRoom_{$roomNum}")
+                        ->label($roomNum)
+                        ->icon($roomNumber === $roomNum ? 'heroicon-o-check' : null)
+                        ->action(function () use ($roomNum) {
+                            $this->filterRoom = "room-{$roomNum}";
+                            $this->dispatch('filament-fullcalendar--refresh');
+                        }))
+                    ->values()
+                    ->all(),
+            ])
+                ->label($label)
+                ->icon('heroicon-o-funnel')
+                ->color($roomNumber ? 'primary' : 'gray')
+                ->badge($roomNumber ? null : 'All')
+                ->button(),
             // ViewAction::make()
             //     ->modalHeading('View Schedule')
             //     ->modalSubmitActionLabel('View')
@@ -394,12 +394,14 @@ class CalendarWidget extends FullCalendarWidget
                 ? $record->end_time->format('Y-m-d H:i:s')
                 : $record->end_time;
             $roomId = $record->room_id;
-            if ($roomId !== null && ScheduleOverlapChecker::hasOverlap(
-                (int) $roomId,
-                Carbon::parse($startTime),
-                Carbon::parse($endTime),
-                [ScheduleStatus::Approved]
-            )) {
+            if (
+                $roomId !== null && ScheduleOverlapChecker::hasOverlap(
+                    (int) $roomId,
+                    Carbon::parse($startTime),
+                    Carbon::parse($endTime),
+                    [ScheduleStatus::Approved]
+                )
+            ) {
                 return [];
             }
 
@@ -416,17 +418,19 @@ class CalendarWidget extends FullCalendarWidget
         $arguments = $lastAction['arguments'] ?? [];
         $startTime = $arguments['start'] ?? null;
         $endTime = $arguments['end'] ?? null;
-        if (! $startTime || ! $endTime) {
+        if (!$startTime || !$endTime) {
             return $this->matchingPendingSchedules ?? [];
         }
 
         $selectedRoomId = $this->getSelectedSlotRoomIdForSchema();
-        if ($selectedRoomId !== null && ScheduleOverlapChecker::hasOverlap(
-            $selectedRoomId,
-            Carbon::parse($startTime),
-            Carbon::parse($endTime),
-            [ScheduleStatus::Approved]
-        )) {
+        if (
+            $selectedRoomId !== null && ScheduleOverlapChecker::hasOverlap(
+                $selectedRoomId,
+                Carbon::parse($startTime),
+                Carbon::parse($endTime),
+                [ScheduleStatus::Approved]
+            )
+        ) {
             return [];
         }
 
@@ -512,7 +516,7 @@ class CalendarWidget extends FullCalendarWidget
     protected function getResources(): array
     {
         return $this->getRooms()
-            ->map(fn ($room) => [
+            ->map(fn($room) => [
                 'id' => "room-{$room->room_number}",
                 'title' => $room->room_number,
             ])
@@ -616,7 +620,7 @@ class CalendarWidget extends FullCalendarWidget
             $room = $rooms->get($schedule->room_id);
 
             // Skip if room not found (shouldn't happen, but safety check)
-            if (! $room) {
+            if (!$room) {
                 return null;
             }
 
@@ -640,7 +644,7 @@ class CalendarWidget extends FullCalendarWidget
 
             // Include room number in title if no room filter is set
             $title = $schedule->event_title;
-            if (! $hasRoomFilter) {
+            if (!$hasRoomFilter) {
                 $title = "{$room->room_number} - {$title}";
             }
             if ($isPending) {
@@ -718,7 +722,7 @@ class CalendarWidget extends FullCalendarWidget
                 ->color('success')
                 ->action(function () {
                     $this->approveMatchingSchedule($this->record->id);
-                })->authorize(fn () => Auth::check() && Auth::user()->can('Update:Schedule'));
+                })->authorize(fn() => Auth::check() && Auth::user()->can('Update:Schedule'));
             $actions[] = $approveAction;
         }
 
@@ -727,7 +731,7 @@ class CalendarWidget extends FullCalendarWidget
                 return Auth::check() && Auth::user()->can('Update:Schedule');
             })
             ->hidden(function (Schedule $record) {
-                return ! Auth::check() || ! Auth::user()->can('Update:Schedule');
+                return !Auth::check() || !Auth::user()->can('Update:Schedule');
             })
             ->mountUsing(function ($form, Schedule $record) {
                 // Calculate duration in minutes from start_time and end_time
@@ -757,7 +761,7 @@ class CalendarWidget extends FullCalendarWidget
                 return Auth::check() && Auth::user()->can('Delete:Schedule');
             })
             ->hidden(function (Schedule $record) {
-                return ! Auth::check() || ! Auth::user()->can('Delete:Schedule');
+                return !Auth::check() || !Auth::user()->can('Delete:Schedule');
             });
         $actions[] = $deleteAction;
 
@@ -769,7 +773,7 @@ class CalendarWidget extends FullCalendarWidget
             ->color('danger')
             ->visible(function (): bool {
                 $record = $this->record;
-                if (! $record instanceof Schedule) {
+                if (!$record instanceof Schedule) {
                     return false;
                 }
 
@@ -796,10 +800,10 @@ class CalendarWidget extends FullCalendarWidget
             ->color('primary')
             ->visible(function (): bool {
                 $template = $this->record;
-                if (! $template instanceof Schedule || $template->type !== ScheduleType::Template) {
+                if (!$template instanceof Schedule || $template->type !== ScheduleType::Template) {
                     return false;
                 }
-                if (! Auth::check()) {
+                if (!Auth::check()) {
                     return false;
                 }
                 $alreadyRequested = Schedule::query()
@@ -808,7 +812,7 @@ class CalendarWidget extends FullCalendarWidget
                     ->whereIn('status', [ScheduleStatus::Pending, ScheduleStatus::Approved])
                     ->exists();
 
-                return ! $alreadyRequested;
+                return !$alreadyRequested;
             })
             ->modalHeading('Request override')
             ->modalDescription('Create a prioritized request for this slot. Admins will approve or reject it.')
@@ -829,7 +833,7 @@ class CalendarWidget extends FullCalendarWidget
             })
             ->action(function (array $data): void {
                 $template = $this->record;
-                if (! $template instanceof Schedule || $template->type !== ScheduleType::Template) {
+                if (!$template instanceof Schedule || $template->type !== ScheduleType::Template) {
                     return;
                 }
 
@@ -899,7 +903,7 @@ class CalendarWidget extends FullCalendarWidget
                 $this->unmountAction();
                 $this->refreshRecords();
             })
-            ->authorize(fn () => Auth::check() && Auth::user()?->can('Create:Schedule'));
+            ->authorize(fn() => Auth::check() && Auth::user()?->can('Create:Schedule'));
 
         $actions[] = $overrideAction;
 
@@ -908,12 +912,12 @@ class CalendarWidget extends FullCalendarWidget
 
     public function approveMatchingSchedule(int $id): void
     {
-        if (! Auth::check() || ! Auth::user()->can('Update:Schedule')) {
+        if (!Auth::check() || !Auth::user()->can('Update:Schedule')) {
             return;
         }
 
         $schedule = Schedule::query()->where('id', $id)->first();
-        if (! $schedule || $schedule->status !== ScheduleStatus::Pending) {
+        if (!$schedule || $schedule->status !== ScheduleStatus::Pending) {
             Notification::make()
                 ->title('Cannot approve')
                 ->body('Schedule not found or not pending.')
@@ -972,7 +976,7 @@ class CalendarWidget extends FullCalendarWidget
         $schedule->approve();
 
         $this->matchingPendingSchedules = collect($this->matchingPendingSchedules)
-            ->filter(fn ($s) => (is_object($s) ? $s->id : ($s['id'] ?? null)) !== $id)
+            ->filter(fn($s) => (is_object($s) ? $s->id : ($s['id'] ?? null)) !== $id)
             ->values();
 
         Notification::make()
@@ -987,12 +991,12 @@ class CalendarWidget extends FullCalendarWidget
 
     public function rejectMatchingSchedule(int $id): void
     {
-        if (! Auth::check() || ! Auth::user()->can('Update:Schedule')) {
+        if (!Auth::check() || !Auth::user()->can('Update:Schedule')) {
             return;
         }
 
         $schedule = Schedule::query()->where('id', $id)->first();
-        if (! $schedule || $schedule->status !== ScheduleStatus::Pending) {
+        if (!$schedule || $schedule->status !== ScheduleStatus::Pending) {
             Notification::make()
                 ->title('Cannot reject')
                 ->body('Schedule not found or not pending.')
@@ -1005,7 +1009,7 @@ class CalendarWidget extends FullCalendarWidget
         $schedule->reject();
 
         $this->matchingPendingSchedules = collect($this->matchingPendingSchedules)
-            ->filter(fn ($s) => (is_object($s) ? $s->id : ($s['id'] ?? null)) !== $id)
+            ->filter(fn($s) => (is_object($s) ? $s->id : ($s['id'] ?? null)) !== $id)
             ->values();
 
         Notification::make()
