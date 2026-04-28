@@ -10,6 +10,7 @@ use App\Mail\Schedule\ScheduleRejected;
 use App\Models\Key;
 use App\Models\Room;
 use App\Models\Schedule;
+use App\Models\ScheduleHandover;
 use App\Models\User;
 use App\ScheduleStatus;
 use App\ScheduleType;
@@ -54,6 +55,31 @@ class ScheduleTest extends TestCase
         $schedule->cancel();
 
         Mail::assertQueued(ScheduleCancelledConfirmation::class);
+    }
+
+    public function test_cancel_finalizes_pending_handover_when_schedule_is_next_in_chain(): void
+    {
+        Mail::fake();
+
+        $room = Room::factory()->create();
+        Key::factory()->create(['room_id' => $room->id]);
+
+        $previous = Schedule::factory()->approved()->create([
+            'room_id' => $room->id,
+        ]);
+        $next = Schedule::factory()->approved()->create([
+            'room_id' => $room->id,
+        ]);
+
+        $handover = ScheduleHandover::factory()->create([
+            'previous_schedule_id' => $previous->id,
+            'next_schedule_id' => $next->id,
+            'resolution_finalized_at' => null,
+        ]);
+
+        $next->cancel();
+
+        $this->assertNotNull($handover->fresh()->resolution_finalized_at);
     }
 
     public function test_expire_sends_email(): void

@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -171,8 +172,19 @@ class Schedule extends Model
             'status' => ScheduleStatus::Cancelled,
         ]);
 
-        // Send cancellation confirmation email to requester
         EmailNotificationService::sendScheduleCancelledConfirmation($this);
+
+        $handoverAsNext = $this->handoverAsNext()
+            ->whereNull('resolution_finalized_at')
+            ->first();
+
+        if ($handoverAsNext) {
+            $handoverAsNext->markFinalized();
+            Log::info('Schedule::cancel: Finalized pending handover (next schedule cancelled)', [
+                'schedule_id' => $this->id,
+                'handover_id' => $handoverAsNext->id,
+            ]);
+        }
     }
 
     public function expire(): void
