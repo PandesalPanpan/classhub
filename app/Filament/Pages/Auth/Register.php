@@ -3,7 +3,7 @@
 namespace App\Filament\Pages\Auth;
 
 use App\Models\Setting;
-use Filament\Auth\Pages\Register as BaseRegister;
+use DiogoGPinto\AuthUIEnhancer\Pages\Auth\AuthUiEnhancerRegister as BaseRegister;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Component;

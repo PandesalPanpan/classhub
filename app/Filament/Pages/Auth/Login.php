@@ -3,7 +3,7 @@
 namespace App\Filament\Pages\Auth;
 
 use App\Models\Setting;
-use Filament\Auth\Pages\Login as BaseLogin;
+use DiogoGPinto\AuthUIEnhancer\Pages\Auth\AuthUiEnhancerLogin as BaseLogin;
 use Filament\Facades\Filament;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\HtmlString;
