@@ -54,6 +54,9 @@ class Room extends Model
         }
 
         $now = now();
+        $maxStalenessMinutes = (int) Setting::get('grace_period_minutes', 30)
+            + (int) Setting::get('handover_eligibility_window_minutes', 60);
+        $staleCutoff = $now->copy()->subMinutes($maxStalenessMinutes);
 
         $activeSchedule = $this->schedules()
             ->where('status', ScheduleStatus::Approved)
@@ -74,6 +77,9 @@ class Room extends Model
                 ->where('key_id', $this->key->id)
                 ->whereNotNull('schedule_id')
                 ->where('status', KeyStatus::Used->value)
+                ->whereHas('schedule', function ($query) use ($staleCutoff) {
+                    $query->where('end_time', '>=', $staleCutoff);
+                })
                 ->with('schedule.requester')
                 ->orderByDesc('occurred_at')
                 ->first();
