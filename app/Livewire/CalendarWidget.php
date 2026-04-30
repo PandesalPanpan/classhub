@@ -52,6 +52,20 @@ class CalendarWidget extends FullCalendarWidget
      */
     public array $findAvailableRoomsResults = [];
 
+    public ?string $findRoomsDate = null;
+
+    public ?string $findRoomsStartTime = null;
+
+    public ?int $findRoomsDurationMinutes = null;
+
+    public ?int $prefillRoomId = null;
+
+    public ?string $prefillStartTime = null;
+
+    public ?string $prefillEndTime = null;
+
+    public ?string $prefillRoomNumber = null;
+
     protected ?Collection $roomsCache = null;
 
     protected ?string $roomsCacheFilter = null;
@@ -64,6 +78,16 @@ class CalendarWidget extends FullCalendarWidget
         return [
             CreateAction::make()
                 ->authorize(fn() => Auth::check() && Auth::user()->can('Create:Schedule'))
+                ->extraModalFooterActions(fn() => $this->isAppPanel() ? [
+                    Action::make('viewRules')
+                        ->label('View Reservation & Policy Rules')
+                        ->icon('heroicon-o-document-text')
+                        ->color('gray')
+                        ->modalHeading('Reservation and Policy Rules')
+                        ->modalContent(view('filament.pages.reservation-rules'))
+                        ->modalSubmitAction(false)
+                        ->modalCancelActionLabel('Close'),
+                ] : [])
                 ->mountUsing(function ($form, array $arguments) {
                     $this->matchingPendingSchedules = collect();
 
@@ -240,14 +264,17 @@ class CalendarWidget extends FullCalendarWidget
                 ->label('Find rooms')
                 ->icon('heroicon-o-magnifying-glass')
                 ->color('gray')
-                ->visible(fn() => $this->isAdminPanel())
-                ->authorize(fn() => Auth::check() && Auth::user()->can('View:Schedule'))
+                ->visible(fn() => Auth::check())
+                ->authorize(fn() => Auth::check())
                 ->modalHeading('Find available rooms')
                 ->modalSubmitActionLabel('Find rooms')
                 ->modalWidth('xl')
                 ->form(fn() => FindAvailableRoomsForm::schema($this))
                 ->mountUsing(function (): void {
                     $this->findAvailableRoomsResults = [];
+                    $this->findRoomsDate = null;
+                    $this->findRoomsStartTime = null;
+                    $this->findRoomsDurationMinutes = null;
                     $idx = array_key_last($this->mountedActions);
                     if ($idx !== null) {
                         $actions = $this->mountedActions ?? [];
@@ -271,8 +298,16 @@ class CalendarWidget extends FullCalendarWidget
                     $start = Carbon::parse($date . ' ' . $startTime);
                     $end = $start->copy()->addMinutes($durationMinutes);
 
+                    $this->findRoomsDate = $date;
+                    $this->findRoomsStartTime = $startTime;
+                    $this->findRoomsDurationMinutes = $durationMinutes;
+
+                    $blockingStatuses = $this->isAdminPanel()
+                        ? [ScheduleStatus::Approved, ScheduleStatus::Pending]
+                        : [ScheduleStatus::Approved];
+
                     $conflictingByRoom = Schedule::query()
-                        ->whereIn('status', [ScheduleStatus::Approved, ScheduleStatus::Pending])
+                        ->whereIn('status', $blockingStatuses)
                         ->where('start_time', '<', $end->format('Y-m-d H:i:s'))
                         ->where('end_time', '>', $start->format('Y-m-d H:i:s'))
                         ->get(['id', 'room_id', 'subject', 'program_year_section', 'instructor', 'start_time', 'end_time'])
@@ -908,6 +943,59 @@ class CalendarWidget extends FullCalendarWidget
         $actions[] = $overrideAction;
 
         return $actions;
+    }
+
+    public function openCreateRequestFromFindRooms(int $roomId): void
+    {
+        if (! $this->isAppPanel() || ! Auth::check() || ! Auth::user()->can('Create:Schedule')) {
+            return;
+        }
+
+        if (! $this->findRoomsDate || ! $this->findRoomsStartTime || ! $this->findRoomsDurationMinutes) {
+            return;
+        }
+
+        $room = Room::query()->find($roomId);
+        if (! $room) {
+            return;
+        }
+
+        $start = Carbon::parse($this->findRoomsDate . ' ' . $this->findRoomsStartTime);
+        $end = $start->copy()->addMinutes($this->findRoomsDurationMinutes);
+
+        $this->prefillRoomId = $roomId;
+        $this->prefillStartTime = $start->format('Y-m-d H:i:s');
+        $this->prefillEndTime = $end->format('Y-m-d H:i:s');
+        $this->prefillRoomNumber = $room->room_number;
+
+        $this->unmountAction();
+
+        $this->js(<<<'JS'
+            setTimeout(() => {
+                $wire.mountCreateFromFindRooms();
+            }, 300);
+        JS);
+    }
+
+    public function mountCreateFromFindRooms(): void
+    {
+        if (! $this->prefillRoomId || ! $this->prefillStartTime || ! $this->prefillEndTime || ! $this->prefillRoomNumber) {
+            return;
+        }
+
+        $this->mountAction('create', [
+            'type' => 'select',
+            'start' => $this->prefillStartTime,
+            'end' => $this->prefillEndTime,
+            'resource' => [
+                'id' => "room-{$this->prefillRoomNumber}",
+            ],
+        ]);
+
+        $this->prefillRoomId = null;
+        $this->prefillStartTime = null;
+        $this->prefillEndTime = null;
+        $this->prefillRoomNumber = null;
     }
 
     public function approveMatchingSchedule(int $id): void

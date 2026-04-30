@@ -1,4 +1,10 @@
-@props(['results' => []])
+@props(['results' => [], 'panelId' => null])
+
+@php
+    $showActionColumn = ($panelId ?? null) === 'app'
+        && auth()->check()
+        && auth()->user()->can('Create:Schedule');
+@endphp
 
 @if(empty($results))
     <p class="fi-description-text text-gray-500 dark:text-gray-400">
@@ -15,6 +21,11 @@
                     <th class="fi-ta-header-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">
                         Status
                     </th>
+                    @if($showActionColumn)
+                        <th class="fi-ta-header-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">
+                            Action
+                        </th>
+                    @endif
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -39,6 +50,20 @@
                                     </x-filament::badge>
                                 @endif
                             </td>
+                            @if($showActionColumn)
+                                <td class="fi-ta-cell p-3">
+                                    @if($available)
+                                        <x-filament::button
+                                            size="sm"
+                                            wire:click="openCreateRequestFromFindRooms({{ $room->id }})"
+                                        >
+                                            Create Request
+                                        </x-filament::button>
+                                    @else
+                                        <span class="text-sm text-gray-500 dark:text-gray-400">—</span>
+                                    @endif
+                                </td>
+                            @endif
                         </tr>
                     @endif
                 @endforeach

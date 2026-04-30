@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages\Schemas;
 
+use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TimePicker;
@@ -54,7 +55,10 @@ class FindAvailableRoomsForm
                 ->schema([
                     ViewField::make('find_available_rooms_results')
                         ->view('filament.components.find-available-rooms-results')
-                        ->viewData(['results' => $widget->findAvailableRoomsResults ?? []])
+                        ->viewData([
+                            'results' => $widget->findAvailableRoomsResults ?? [],
+                            'panelId' => Filament::getCurrentPanel()?->getId(),
+                        ])
                         ->dehydrated(false)
                         ->columnSpanFull(),
                 ]),
