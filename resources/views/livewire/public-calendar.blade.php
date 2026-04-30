@@ -11,12 +11,12 @@
         </div>
         <div class="flex items-center gap-3">
             @auth
-                <button
-                    type="button"
+                <a
+                    href="{{ Route::has('filament.app.pages.request-schedule') ? route('filament.app.pages.request-schedule') : url('/portal/request-schedule') }}"
                     class="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-md transition-colors cursor-pointer"
                 >
                     Request Reservation
-                </button>
+                </a>
                 <form method="POST" action="{{ route('filament.app.auth.logout') }}" class="inline">
                     @csrf
                     <button
