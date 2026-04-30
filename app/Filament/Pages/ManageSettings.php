@@ -118,6 +118,15 @@ class ManageSettings extends Page implements HasForms
                             ->columnSpanFull()
                             ->helperText('Supports headings, lists, links, and emphasis.'),
                     ]),
+                Section::make('Reservation & Policy Rules')
+                    ->description('Content shown in the "View Reservation & Policy Rules" modal for schedule requests.')
+                    ->schema([
+                        MarkdownEditor::make('reservation_rules_content')
+                            ->label('Reservation Rules Content')
+                            ->required()
+                            ->columnSpanFull()
+                            ->helperText('Supports headings, lists, links, and emphasis.'),
+                    ]),
             ])
             ->statePath('data');
     }
@@ -135,6 +144,7 @@ class ManageSettings extends Page implements HasForms
             'allow_past_schedule_requests' => ['required', 'boolean'],
             'allow_app_registration' => ['required', 'boolean'],
             'policy_content' => ['required', 'string'],
+            'reservation_rules_content' => ['required', 'string'],
         ], [
             'grace_period_minutes.lte' => 'The grace period must be less than or equal to the handover eligibility window.',
         ]);

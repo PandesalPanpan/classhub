@@ -30,6 +30,7 @@ class Setting extends Model
         'allow_app_registration',
         'policy_content',
         'policy_updated_at',
+        'reservation_rules_content',
     ];
 
     protected function casts(): array
@@ -74,6 +75,7 @@ class Setting extends Model
             'allow_app_registration' => (bool) config('classhub.schedule.allow_app_registration', true),
             'policy_content' => null,
             'policy_updated_at' => null,
+            'reservation_rules_content' => (string) config('classhub.schedule.reservation_rules_content', ''),
         ];
     }
 
@@ -117,6 +119,7 @@ class Setting extends Model
                 'allow_app_registration' => (bool) $model->allow_app_registration,
                 'policy_content' => $model->policy_content,
                 'policy_updated_at' => $model->policy_updated_at,
+                'reservation_rules_content' => $model->reservation_rules_content,
             ];
         });
     }
