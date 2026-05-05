@@ -42,7 +42,7 @@ class FindAvailableRoomsForm
                         ->format('H:i:s'),
                     Select::make('duration_minutes')
                         ->label('Duration')
-                        ->options(RequestScheduleForm::durationMinutesOptions())
+                        ->options(ScheduleFormOptions::durationMinutesOptions())
                         ->default(60)
                         ->required(),
                 ])

@@ -10,7 +10,6 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\TimePicker;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Section;
@@ -94,27 +93,17 @@ class BulkScheduleForm
 
                     Fieldset::make('Time & Duration')
                         ->schema([
-                            TimePicker::make('start_time')
+                            Select::make('start_time')
                                 ->label('Start Time')
+                                ->options(ScheduleFormOptions::timeSlotOptions())
                                 ->required()
-                                ->seconds(false)
-                                ->minutesStep(30)
-                                ->native(false)
-                                ->displayFormat('g:i A')
-                                ->format('H:i:s')
+                                ->searchable()
                                 ->helperText('The start time for each occurrence')
                                 ->live(),
 
                             Select::make('duration_minutes')
                                 ->label('Duration')
-                                ->options([
-                                    30 => '30 minutes',
-                                    60 => '1 hour',
-                                    90 => '1.5 hours',
-                                    120 => '2 hours',
-                                    150 => '2.5 hours',
-                                    180 => '3 hours',
-                                ])
+                                ->options(ScheduleFormOptions::durationMinutesOptions(180))
                                 ->default(60)
                                 ->required()
                                 ->helperText('How long each class session lasts')
