@@ -4,7 +4,7 @@
     data-rooms="{{ json_encode($rooms) }}"
     data-events="{{ json_encode($events) }}"
 >
-    <div class="mb-2 flex items-center justify-between gap-4 shrink-0">
+    <div class="mb-1 flex items-center justify-between gap-4 shrink-0">
         <div>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">PUP Computer Engineering Classrooms Schedule</h2>
             <p class="text-gray-600 dark:text-gray-400">View the latest schedules for all classrooms</p>
