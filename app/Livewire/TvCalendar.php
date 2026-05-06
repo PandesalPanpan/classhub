@@ -41,4 +41,3 @@ class TvCalendar extends Component
         ]);
     }
 }
-

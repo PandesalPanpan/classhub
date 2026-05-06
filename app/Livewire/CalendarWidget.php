@@ -8,10 +8,12 @@ use App\Filament\Pages\Schemas\RequestScheduleForm;
 use App\Filament\Resources\Schedules\Schemas\ScheduleForm;
 use App\Models\Room;
 use App\Models\Schedule;
+use App\Models\ScheduleHandover;
 use App\Models\Setting;
 use App\ScheduleStatus;
 use App\ScheduleType;
 use App\Services\EmailNotificationService;
+use App\Services\HandoverOperationalService;
 use App\Services\ScheduleNotificationService;
 use App\Services\ScheduleOverlapChecker;
 use Carbon\Carbon;
@@ -310,8 +312,8 @@ class CalendarWidget extends FullCalendarWidget
                         ->whereIn('status', $blockingStatuses)
                         ->where('start_time', '<', $end->format('Y-m-d H:i:s'))
                         ->where('end_time', '>', $start->format('Y-m-d H:i:s'))
-                        ->get(['id', 'room_id', 'subject', 'program_year_section', 'instructor', 'start_time', 'end_time'])
-                        ->keyBy('room_id');
+                        ->get(['id', 'room_id', 'type', 'subject', 'program_year_section', 'instructor', 'start_time', 'end_time'])
+                        ->groupBy('room_id');
 
                     $rooms = Room::query()
                         ->where('is_active', true)
@@ -320,10 +322,14 @@ class CalendarWidget extends FullCalendarWidget
 
                     $results = [];
                     foreach ($rooms as $room) {
-                        $conflicting = $conflictingByRoom->get($room->id);
+                        $conflicts = $conflictingByRoom->get($room->id);
+                        $hasRequestConflict = $conflicts?->contains(fn ($schedule) => $schedule->type !== ScheduleType::Template) ?? false;
+                        $hasTemplateConflict = $conflicts?->contains(fn ($schedule) => $schedule->type === ScheduleType::Template) ?? false;
+                        $conflicting = $conflicts?->first(fn ($schedule) => $schedule->type !== ScheduleType::Template) ?? $conflicts?->first();
                         $results[] = [
                             'room' => $room,
-                            'available' => $conflicting === null,
+                            'available' => ! $hasRequestConflict,
+                            'template_conflict' => ! $hasRequestConflict && $hasTemplateConflict,
                             'conflicting_schedule' => $conflicting,
                         ];
                     }
@@ -331,6 +337,14 @@ class CalendarWidget extends FullCalendarWidget
                     usort($results, function (array $a, array $b): int {
                         if ($a['available'] !== $b['available']) {
                             return $a['available'] ? -1 : 1;
+                        }
+
+                        if ($a['available'] && $b['available']) {
+                            $aTemplate = $a['template_conflict'] ?? false;
+                            $bTemplate = $b['template_conflict'] ?? false;
+                            if ($aTemplate !== $bTemplate) {
+                                return $aTemplate ? 1 : -1;
+                            }
                         }
 
                         return strcmp(
@@ -1033,6 +1047,134 @@ class CalendarWidget extends FullCalendarWidget
             ->authorize(fn () => Auth::check() && Auth::user()?->can('Create:Schedule'));
 
         $actions[] = $overrideAction;
+
+        $forceHandoverAction = Action::make('forceHandover')
+            ->label('Force Handover (from previous)')
+            ->icon('heroicon-o-hand-raised')
+            ->color('info')
+            ->visible(function (): bool {
+                $record = $this->record;
+                if (! $record instanceof Schedule) {
+                    return false;
+                }
+
+                if (! $this->isAdminPanel()) {
+                    return false;
+                }
+
+                if ($record->status !== ScheduleStatus::Approved) {
+                    return false;
+                }
+
+                $hasAppliedHandoverAsNext = $record->handoverAsNext()
+                    ->whereNotNull('resolution_finalized_at')
+                    ->whereNotNull('previous_confirmed_at')
+                    ->whereNotNull('next_confirmed_at')
+                    ->exists();
+
+                if ($hasAppliedHandoverAsNext) {
+                    return false;
+                }
+
+                return Schedule::query()
+                    ->where('room_id', $record->room_id)
+                    ->where('id', '!=', $record->id)
+                    ->where('status', ScheduleStatus::Approved)
+                    ->where('end_time', '<=', $record->start_time)
+                    ->where('end_time', '>=', $record->start_time->copy()->subMinutes(
+                        (int) Setting::get('handover_eligibility_window_minutes')
+                    ))
+                    ->exists();
+            })
+            ->requiresConfirmation()
+            ->modalHeading('Force Handover')
+            ->modalDescription(function (): string {
+                $record = $this->record;
+                if (! $record instanceof Schedule) {
+                    return '';
+                }
+
+                $previousSchedule = Schedule::query()
+                    ->where('room_id', $record->room_id)
+                    ->where('id', '!=', $record->id)
+                    ->where('status', ScheduleStatus::Approved)
+                    ->where('end_time', '<=', $record->start_time)
+                    ->where('end_time', '>=', $record->start_time->copy()->subMinutes(
+                        (int) Setting::get('handover_eligibility_window_minutes')
+                    ))
+                    ->orderByDesc('end_time')
+                    ->first();
+
+                if (! $previousSchedule) {
+                    return 'No eligible previous schedule found.';
+                }
+
+                $prevTime = $previousSchedule->start_time->format('g:i A').' – '.$previousSchedule->end_time->format('g:i A');
+                $nextTime = $record->start_time->format('g:i A').' – '.$record->end_time->format('g:i A');
+
+                return "This will create and immediately apply a handover from the previous schedule to this one.\n\n"
+                    ."Previous: {$previousSchedule->subject} ({$previousSchedule->program_year_section}) · {$prevTime}\n"
+                    ."Next: {$record->subject} ({$record->program_year_section}) · {$nextTime}\n\n"
+                    .'The key will be marked as HANDED_OVER and a synthetic USED event will be created for this schedule. '
+                    .'Only use this when you have verified the physical key exchange occurred.';
+            })
+            ->modalSubmitActionLabel('Force Handover')
+            ->action(function (): void {
+                $record = $this->record;
+                if (! $record instanceof Schedule) {
+                    return;
+                }
+
+                $previousSchedule = Schedule::query()
+                    ->where('room_id', $record->room_id)
+                    ->where('id', '!=', $record->id)
+                    ->where('status', ScheduleStatus::Approved)
+                    ->where('end_time', '<=', $record->start_time)
+                    ->where('end_time', '>=', $record->start_time->copy()->subMinutes(
+                        (int) Setting::get('handover_eligibility_window_minutes')
+                    ))
+                    ->orderByDesc('end_time')
+                    ->first();
+
+                if (! $previousSchedule) {
+                    Notification::make()
+                        ->title('No eligible previous schedule')
+                        ->body('Could not find a previous schedule in the handover window.')
+                        ->warning()
+                        ->send();
+
+                    return;
+                }
+
+                $handover = ScheduleHandover::firstOrCreate(
+                    ['previous_schedule_id' => $previousSchedule->id],
+                    [
+                        'next_schedule_id' => $record->id,
+                        'resolution_deadline_at' => now(),
+                    ]
+                );
+
+                $handover->update([
+                    'next_schedule_id' => $record->id,
+                    'resolution_finalized_at' => null,
+                    'previous_confirmed_at' => now(),
+                    'next_confirmed_at' => now(),
+                ]);
+
+                HandoverOperationalService::apply($handover);
+
+                Notification::make()
+                    ->title('Handover applied')
+                    ->body("Key handed over from {$previousSchedule->subject} to {$record->subject}. Key marked as HANDED_OVER.")
+                    ->success()
+                    ->send();
+
+                $this->unmountAction();
+                $this->refreshRecords();
+            })
+            ->authorize(fn () => Auth::check() && Auth::user()->can('Update:Schedule'));
+
+        $actions[] = $forceHandoverAction;
 
         return $actions;
     }

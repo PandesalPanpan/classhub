@@ -150,28 +150,19 @@ window.initTvCalendar = function (rooms, events) {
 
     calendarEl.dataset.initialized = 'true';
 
-    const calculateAvailableCalendarHeight = () => {
-        const topOffset = calendarEl.getBoundingClientRect().top;
-        return Math.max(300, window.innerHeight - topOffset - 16);
-    };
-
     const calendar = new Calendar(calendarEl, {
         schedulerLicenseKey: 'GPL-My-Project-Is-Open-Source',
         plugins: [resourcePlugin, resourceTimelinePlugin, interactionPlugin, resourceTimeGridDay],
         initialView: 'resourceTimeGridDay',
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'resourceTimelineDay'
-        },
+        headerToolbar: false,
         resources: rooms,
         events: withHashedColors(events),
         resourceAreaWidth: '10%',
         slotMinTime: '07:00:00',
-        slotMaxTime: '21:30:00',
+        slotMaxTime: '21:00:00',
         slotDuration: '00:30:00',
         slotLabelInterval: '01:00',
-        height: calculateAvailableCalendarHeight(),
+        height: '100%',
         editable: false,
         selectable: false,
         selectMirror: true,
@@ -180,7 +171,6 @@ window.initTvCalendar = function (rooms, events) {
         nowIndicator: true,
         allDaySlot: false,
         expandRows: true,
-        slotLabelClassNames: 'min-w-[100px]',
         eventContent: function(arg) {
             const formattedTitle = formatEventTitle(arg.event.title);
             const htmlTitle = formattedTitle.replace(/\n/g, '<br>');
@@ -263,7 +253,7 @@ window.initTvCalendar = function (rooms, events) {
     const cleanupStableSizer = stabilizeLayout(calendarEl, calendar);
 
     window.addEventListener('resize', () => {
-        calendar.setOption('height', calculateAvailableCalendarHeight());
+        calendar.updateSize();
         requestAnimationFrame(() => ensureNoScroll(calendarEl, calendar));
     });
 

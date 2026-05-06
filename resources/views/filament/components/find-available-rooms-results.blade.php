@@ -40,9 +40,13 @@
                                 {{ $room->room_full_label ?? $room->room_number }}
                             </td>
                             <td class="fi-ta-cell p-3">
-                                @if($available)
+                                @if($available && !($row['template_conflict'] ?? false))
                                     <x-filament::badge color="success" size="sm">
                                         Available
+                                    </x-filament::badge>
+                                @elseif($available && ($row['template_conflict'] ?? false))
+                                    <x-filament::badge color="warning" size="sm">
+                                        Template Only
                                     </x-filament::badge>
                                 @else
                                     <x-filament::badge color="danger" size="sm">
@@ -57,7 +61,7 @@
                                             size="sm"
                                             wire:click="openCreateRequestFromFindRooms({{ $room->id }})"
                                         >
-                                            Create Request
+                                            {{ ($row['template_conflict'] ?? false) ? 'Request Override' : 'Create Request' }}
                                         </x-filament::button>
                                     @else
                                         <span class="text-sm text-gray-500 dark:text-gray-400">—</span>

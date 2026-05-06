@@ -217,6 +217,42 @@ class RoomsTable
                                 ->success()
                                 ->send();
                         }),
+                    BulkAction::make('bulkSetActive')
+                        ->label('Set Active')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Activate Selected Rooms')
+                        ->modalDescription('This will set all selected rooms to active. Active rooms appear in room availability searches and can receive new schedule requests.')
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records): void {
+                            $count = Room::whereIn('id', $records->pluck('id'))
+                                ->where('is_active', false)
+                                ->update(['is_active' => true]);
+
+                            Notification::make()
+                                ->title("{$count} room(s) activated")
+                                ->success()
+                                ->send();
+                        }),
+                    BulkAction::make('bulkSetInactive')
+                        ->label('Set Inactive')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Deactivate Selected Rooms')
+                        ->modalDescription('This will set all selected rooms to inactive. Inactive rooms will not appear in room availability searches and cannot receive new schedule requests.')
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records): void {
+                            $count = Room::whereIn('id', $records->pluck('id'))
+                                ->where('is_active', true)
+                                ->update(['is_active' => false]);
+
+                            Notification::make()
+                                ->title("{$count} room(s) deactivated")
+                                ->success()
+                                ->send();
+                        }),
                     DeleteBulkAction::make(),
                 ]),
             ]);

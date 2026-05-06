@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Schedules\Actions;
 
 use App\Jobs\EndOfClassJob;
 use App\Models\Schedule;
+use App\Models\ScheduleHandover;
 use App\ScheduleStatus;
 use App\Services\HandoverOperationalService;
 use Filament\Actions\Action;
@@ -26,6 +27,7 @@ class SchedulesActions
             ActionGroup::make([
                 self::reactivateAction(),
                 self::forceApplyHandoverAction(),
+                self::forceCreateHandoverAction(),
                 self::finalizeHandoverAction(),
             ])
                 ->label('Recovery')
@@ -298,6 +300,7 @@ class SchedulesActions
                     return;
                 }
 
+                /** @var ScheduleHandover $handover */
                 $handover->update([
                     'previous_confirmed_at' => now(),
                     'next_confirmed_at' => now(),
@@ -333,7 +336,7 @@ class SchedulesActions
                     ->whereNull('resolution_finalized_at')
                     ->first();
 
-                if ($handover) {
+                if ($handover instanceof ScheduleHandover) {
                     $handover->markFinalized();
 
                     Notification::make()
@@ -342,6 +345,77 @@ class SchedulesActions
                         ->success()
                         ->send();
                 }
+            });
+    }
+
+    private static function forceCreateHandoverAction(): Action
+    {
+        return Action::make('forceCreateHandover')
+            ->label('Force Handover (to next schedule)')
+            ->icon('heroicon-o-arrow-right-circle')
+            ->color('info')
+            ->requiresConfirmation()
+            ->modalHeading('Force Create & Apply Handover')
+            ->modalDescription(function (Schedule $record): string {
+                $nextSchedule = $record->findNextScheduleInHandoverWindow();
+                if (! $nextSchedule) {
+                    return 'No eligible next schedule found in the handover window.';
+                }
+
+                $nextTime = $nextSchedule->start_time->format('g:i A').' – '.$nextSchedule->end_time->format('g:i A');
+
+                return "This will create and immediately apply a handover from this schedule to the next one.\n\n"
+                    ."Next: {$nextSchedule->subject} ({$nextSchedule->program_year_section}) · {$nextTime}\n\n"
+                    .'The key will be marked as HANDED_OVER and a synthetic USED event will be created for the next schedule. '
+                    .'Only use this when you have verified the physical key exchange occurred.';
+            })
+            ->modalSubmitActionLabel('Force Create & Apply')
+            ->visible(function (Schedule $record): bool {
+                $hasPendingHandover = $record->handoverAsPrevious()
+                    ->whereNull('resolution_finalized_at')
+                    ->exists();
+
+                if ($hasPendingHandover) {
+                    return false;
+                }
+
+                return $record->findNextScheduleInHandoverWindow() !== null;
+            })
+            ->action(function (Schedule $record) {
+                $nextSchedule = $record->findNextScheduleInHandoverWindow();
+
+                if (! $nextSchedule) {
+                    Notification::make()
+                        ->title('No eligible next schedule')
+                        ->body('Could not find a next schedule in the handover window.')
+                        ->warning()
+                        ->send();
+
+                    return;
+                }
+
+                $handover = ScheduleHandover::firstOrCreate(
+                    ['previous_schedule_id' => $record->id],
+                    [
+                        'next_schedule_id' => $nextSchedule->id,
+                        'resolution_deadline_at' => now(),
+                    ]
+                );
+
+                $handover->update([
+                    'next_schedule_id' => $nextSchedule->id,
+                    'resolution_finalized_at' => null,
+                    'previous_confirmed_at' => now(),
+                    'next_confirmed_at' => now(),
+                ]);
+
+                HandoverOperationalService::apply($handover);
+
+                Notification::make()
+                    ->title('Handover created and applied')
+                    ->body("Key handed over to {$nextSchedule->subject}. Key marked as HANDED_OVER.")
+                    ->success()
+                    ->send();
             });
     }
 }

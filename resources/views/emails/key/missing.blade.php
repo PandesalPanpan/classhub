@@ -39,6 +39,6 @@
 
     @include('emails.partials.button', [
         'label' => 'Manage Rooms and Keys',
-        'url' => config('app.url').'/admin/resources/rooms',
+        'url' => config('app.url').'/admin/rooms',
     ])
 @endsection

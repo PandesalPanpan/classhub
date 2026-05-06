@@ -1,48 +1,34 @@
 <div
-    class="w-full h-screen flex flex-col p-4 overflow-hidden"
+    class="w-full h-screen flex flex-col overflow-hidden"
     wire:poll.10s
     data-rooms="{{ json_encode($rooms) }}"
     data-events="{{ json_encode($events) }}"
 >
-    <div class="mb-1 flex items-center justify-between gap-4 shrink-0">
-        <div>
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">PUP Computer Engineering Classrooms Schedule</h2>
-            <p class="text-gray-600 dark:text-gray-400">View the latest schedules for all classrooms</p>
-        </div>
-        <div class="flex items-center gap-3">
-            @auth
-                <a
-                    href="{{ Route::has('filament.app.pages.request-schedule') ? route('filament.app.pages.request-schedule') : url('/portal/request-schedule') }}"
-                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-md transition-colors cursor-pointer"
-                >
-                    Request Reservation
-                </a>
-                <form method="POST" action="{{ route('filament.app.auth.logout') }}" class="inline">
-                    @csrf
-                    <button
-                        type="submit"
-                        class="px-4 py-2 bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 text-white font-medium rounded-md transition-colors cursor-pointer"
-                    >
-                        Logout
-                    </button>
-                </form>
-            @else
-                <a
-                    href="{{ route('filament.app.auth.login') }}"
-                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-md transition-colors cursor-pointer"
-                >
-                    Login
-                </a>
-            @endauth
-        </div>
+    <div id="tv-calendar-header" class="w-full shrink-0 flex items-center justify-between px-4 py-2" style="background-color: #800000;" wire:ignore>
+        <p style="margin: 0; color: #ffffff; font-size: 16px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;">
+            ClassHub &mdash; Room Schedule
+        </p>
+        <p id="tv-calendar-date" style="margin: 0; color: #FFDF00; font-size: 16px; font-weight: 700;"></p>
     </div>
-
     <div id="tv-calendar" class="w-full flex-1 min-h-0" wire:ignore></div>
 </div>
 
 <script>
     (function() {
         window.tvCalendarInstance = null;
+
+        window.updateTvCalendarDateDisplay = function() {
+            const el = document.getElementById('tv-calendar-date');
+            if (!el) {
+                return;
+            }
+
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            el.textContent = now.toLocaleDateString('en-US', options);
+        };
+
+        window.updateTvCalendarDateDisplay();
 
         const container = document.querySelector('[data-rooms][data-events]');
         const rooms = container ? JSON.parse(container.dataset.rooms || '[]') : @json($rooms);
@@ -91,6 +77,7 @@
                     const rooms = JSON.parse(container.dataset.rooms || '[]');
                     const events = JSON.parse(container.dataset.events || '[]');
                     window.updateTvCalendar(rooms, events);
+                    window.updateTvCalendarDateDisplay?.();
                 }
             });
         });
@@ -128,6 +115,7 @@
             function checkDayChange() {
                 const currentDate = new Date().toDateString();
                 if (lastCheckedDate && lastCheckedDate !== currentDate) {
+                    window.updateTvCalendarDateDisplay?.();
                     const componentEl = document.querySelector('[wire\\:id]');
                     if (componentEl && typeof Livewire !== 'undefined') {
                         const wireId = componentEl.getAttribute('wire:id');

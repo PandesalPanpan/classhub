@@ -10,4 +10,12 @@
             </a>
         </td>
     </tr>
+    <tr>
+        <td align="center" style="padding-top: 10px;">
+            <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #6b7280;">
+                If the button above doesn't work, copy and paste this link into your browser:<br>
+                <a href="{{ $url }}" style="color: #800000; word-break: break-all;">{{ $url }}</a>
+            </p>
+        </td>
+    </tr>
 </table>

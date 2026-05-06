@@ -103,7 +103,7 @@ class BulkScheduleForm
 
                             Select::make('duration_minutes')
                                 ->label('Duration')
-                                ->options(ScheduleFormOptions::durationMinutesOptions(180))
+                                ->options(ScheduleFormOptions::durationMinutesOptions())
                                 ->default(60)
                                 ->required()
                                 ->helperText('How long each class session lasts')
