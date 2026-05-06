@@ -61,7 +61,7 @@
                                             size="sm"
                                             wire:click="openCreateRequestFromFindRooms({{ $room->id }})"
                                         >
-                                            {{ ($row['template_conflict'] ?? false) ? 'Request Override' : 'Create Request' }}
+                                            Create Request
                                         </x-filament::button>
                                     @else
                                         <span class="text-sm text-gray-500 dark:text-gray-400">—</span>

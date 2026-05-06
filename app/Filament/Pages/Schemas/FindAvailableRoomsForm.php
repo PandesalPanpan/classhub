@@ -2,10 +2,10 @@
 
 namespace App\Filament\Pages\Schemas;
 
+use App\Models\Setting;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\ViewField;
 use Filament\Schemas\Components\Section;
 
@@ -30,16 +30,14 @@ class FindAvailableRoomsForm
                         ->live()
                         ->native(false)
                         ->displayFormat('F j Y')
-                        ->format('Y-m-d'),
-                    TimePicker::make('start_time')
+                        ->format('Y-m-d')
+                        ->minDate(fn () => Setting::get('allow_past_schedule_requests') ? null : today()),
+                    Select::make('start_time')
                         ->label('Start time')
+                        ->options(ScheduleFormOptions::timeSlotOptions())
                         ->required()
-                        ->live()
-                        ->seconds(false)
-                        ->minutesStep(30)
-                        ->native(false)
-                        ->displayFormat('g:i A')
-                        ->format('H:i:s'),
+                        ->searchable()
+                        ->live(),
                     Select::make('duration_minutes')
                         ->label('Duration')
                         ->options(ScheduleFormOptions::durationMinutesOptions())

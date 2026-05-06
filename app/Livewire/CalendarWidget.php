@@ -1357,15 +1357,19 @@ class CalendarWidget extends FullCalendarWidget
             return;
         }
 
-        if (Carbon::parse($data['start_time'])->startOfDay()->isBefore(today())) {
+        $startTime = Carbon::parse($data['start_time']);
+
+        if ($startTime->isBefore(now())) {
+            $formattedTime = $startTime->format('M j, Y g:i A');
+
             Notification::make()
                 ->title('Past schedule requests are disabled')
-                ->body('Past schedule requests are currently disabled by the administrator.')
+                ->body("The selected time ({$formattedTime}) is in the past. Please choose a future time.")
                 ->danger()
                 ->send();
 
             throw ValidationException::withMessages([
-                'start_time' => 'Scheduling in the past is not allowed.',
+                'start_time' => "The selected time ({$formattedTime}) is in the past. Please choose a future time.",
             ]);
         }
     }

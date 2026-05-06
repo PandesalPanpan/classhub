@@ -59,7 +59,7 @@ class RequestScheduleForm
                         ->minDate(fn () => Setting::get('allow_past_schedule_requests') ? null : today())
                         ->helperText(fn () => Setting::get('allow_past_schedule_requests')
                             ? 'You can request schedules in the past and future.'
-                            : 'Past schedule requests are currently disabled by the administrator.')
+                            : 'Past dates and times are not available for scheduling.')
                         ->live()
                         ->dehydrated(false)
                         ->afterStateHydrated(function (Get $get, Set $set) {
@@ -75,7 +75,24 @@ class RequestScheduleForm
 
                     Select::make('start_time_slot')
                         ->label('Time')
-                        ->options(ScheduleFormOptions::timeSlotOptions())
+                        ->options(function (Get $get): array {
+                            $allOptions = ScheduleFormOptions::timeSlotOptions();
+
+                            if (Setting::get('allow_past_schedule_requests')) {
+                                return $allOptions;
+                            }
+
+                            $selectedDate = $get('start_date');
+                            if (! $selectedDate || ! Carbon::parse($selectedDate)->isToday()) {
+                                return $allOptions;
+                            }
+
+                            $nowTime = Carbon::now()->format('H:i');
+
+                            return collect($allOptions)
+                                ->filter(fn (string $label, string $value) => $value >= $nowTime)
+                                ->all();
+                        })
                         ->required()
                         ->searchable()
                         ->live()
