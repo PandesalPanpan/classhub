@@ -9,7 +9,7 @@ return [
         'handover_enabled' => true,
         'allow_past_schedule_requests' => false,
         'allow_app_registration' => true,
-                'reservation_rules_content' => <<<'MARKDOWN'
+        'reservation_rules_content' => <<<'MARKDOWN'
 ### Reservations and Priority Rules
 
 - Reservation inquiries are accepted no earlier than one (1) week and no later than two (2) hours before the scheduled use. Requests are accepted on a **FIRST COME, FIRST SERVED** basis and apply to blocks without an assigned room unless instructed otherwise by the instructor.

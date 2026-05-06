@@ -138,6 +138,10 @@ class Schedule extends Model
             return;
         }
 
+        if ($this->end_time->isPast()) {
+            return;
+        }
+
         // Verify key usage (40% into schedule)
         $runAt = $this->getFortyPercentDurationPoint();
         if ($runAt->isFuture()) {
@@ -153,6 +157,59 @@ class Schedule extends Model
         }
 
         VerifyScheduleKeyUsageJob::dispatch($this);
+    }
+
+    /**
+     * After this schedule is approved, check if it was inserted into an existing
+     * handover chain and update stale references.
+     *
+     * Example: A→B handover exists. C is approved between A and B.
+     * This updates the handover to A→C. C→B will be handled by C's own EndOfClassJob.
+     */
+    public function reconcileNeighborHandovers(): void
+    {
+        if ($this->status !== ScheduleStatus::Approved) {
+            return;
+        }
+
+        $windowMinutes = (int) Setting::get('handover_eligibility_window_minutes');
+
+        $previousSchedule = Schedule::query()
+            ->where('room_id', $this->room_id)
+            ->where('id', '!=', $this->id)
+            ->where('status', ScheduleStatus::Approved)
+            ->where('end_time', '<=', $this->start_time)
+            ->where('end_time', '>=', $this->start_time->copy()->subMinutes($windowMinutes))
+            ->orderByDesc('end_time')
+            ->first();
+
+        if (! $previousSchedule) {
+            return;
+        }
+
+        $existingHandover = ScheduleHandover::query()
+            ->where('previous_schedule_id', $previousSchedule->id)
+            ->whereNull('resolution_finalized_at')
+            ->whereHas('nextSchedule', function (Builder $query): void {
+                $query->where('start_time', '>', $this->start_time);
+            })
+            ->first();
+
+        if (! $existingHandover) {
+            return;
+        }
+
+        $oldNextScheduleId = $existingHandover->next_schedule_id;
+
+        $existingHandover->update([
+            'next_schedule_id' => $this->id,
+        ]);
+
+        Log::info('Schedule::reconcileNeighborHandovers: Updated stale handover', [
+            'previous_schedule_id' => $previousSchedule->id,
+            'old_next_schedule_id' => $oldNextScheduleId,
+            'new_next_schedule_id' => $this->id,
+        ]);
     }
 
     public function reject(): void

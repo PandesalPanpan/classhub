@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use App\ScheduleType;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
@@ -44,6 +45,7 @@ class ActiveSchedulesWidget extends TableWidget
         return Schedule::query()
             ->with(['room', 'requester'])
             ->where('status', ScheduleStatus::Approved)
+            ->where('type', ScheduleType::Request)
             ->where('start_time', '<=', now())
             ->where('end_time', '>=', now());
     }

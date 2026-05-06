@@ -23,9 +23,10 @@ class KeyNotificationService
         }
 
         $notification = Notification::make()
+            ->icon('heroicon-o-key')
+            ->iconColor($newStatus === KeyStatus::Missing ? 'danger' : 'success')
             ->title('Key status updated')
-            ->body("Slot {$key->slot_number}, Room {$roomNumber}: {$oldStatus->value} → {$newStatus->value}")
-            ->success();
+            ->body("Slot {$key->slot_number}, Room {$roomNumber}: {$oldStatus->value} → {$newStatus->value}");
 
         $notification->sendToDatabase($notifiedUsers);
         $notification->broadcast($notifiedUsers);

@@ -17,7 +17,7 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class VerifyScheduleKeyUsageJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
+class VerifyScheduleKeyUsageJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 

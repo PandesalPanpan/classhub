@@ -5,6 +5,7 @@ namespace App\Models;
 use App\KeyStatus;
 use App\RoomType;
 use App\ScheduleStatus;
+use App\ScheduleType;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -60,6 +61,7 @@ class Room extends Model
 
         $activeSchedule = $this->schedules()
             ->where('status', ScheduleStatus::Approved)
+            ->where('type', ScheduleType::Request)
             ->where('start_time', '<=', $now)
             ->where('end_time', '>=', $now)
             ->with('requester')
@@ -78,7 +80,8 @@ class Room extends Model
                 ->whereNotNull('schedule_id')
                 ->where('status', KeyStatus::Used->value)
                 ->whereHas('schedule', function ($query) use ($staleCutoff) {
-                    $query->where('end_time', '>=', $staleCutoff);
+                    $query->where('end_time', '>=', $staleCutoff)
+                        ->where('type', ScheduleType::Request);
                 })
                 ->with('schedule.requester')
                 ->orderByDesc('occurred_at')

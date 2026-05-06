@@ -84,17 +84,21 @@ class HandoverOperationalServiceTest extends TestCase
         $room = Room::factory()->create();
         Key::factory()->create(['room_id' => $room->id, 'status' => KeyStatus::Used]);
 
-        $previous = Schedule::factory()->approved()->create([
-            'room_id' => $room->id,
-            'start_time' => now()->subHours(2),
-            'end_time' => now()->subHour(),
-        ]);
+        [$previous, $next] = Schedule::withoutEvents(function () use ($room) {
+            $previous = Schedule::factory()->approved()->create([
+                'room_id' => $room->id,
+                'start_time' => now()->subHours(2),
+                'end_time' => now()->subHour(),
+            ]);
 
-        $next = Schedule::factory()->approved()->create([
-            'room_id' => $room->id,
-            'start_time' => now()->addMinutes(20),
-            'end_time' => now()->addHours(2),
-        ]);
+            $next = Schedule::factory()->approved()->create([
+                'room_id' => $room->id,
+                'start_time' => now()->addMinutes(20),
+                'end_time' => now()->addHours(2),
+            ]);
+
+            return [$previous, $next];
+        });
 
         return ScheduleHandover::factory()->create([
             'previous_schedule_id' => $previous->id,

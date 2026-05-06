@@ -11,7 +11,7 @@ class HandoverOperationalService
 {
     /**
      * Apply the confirmed handover: update key state, create a synthetic USED event
-    * for the next schedule, then finalize the handover.
+     * for the next schedule, then finalize the handover.
      */
     public static function apply(ScheduleHandover $handover): void
     {

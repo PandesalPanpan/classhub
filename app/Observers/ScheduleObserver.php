@@ -13,7 +13,16 @@ class ScheduleObserver
      */
     public function created(Schedule $schedule): void
     {
-        //
+        if ($schedule->status !== ScheduleStatus::Approved) {
+            return;
+        }
+
+        if ($schedule->type === ScheduleType::Template) {
+            return;
+        }
+
+        $schedule->dispatchKeyJobs();
+        $schedule->reconcileNeighborHandovers();
     }
 
     /**
@@ -25,15 +34,11 @@ class ScheduleObserver
             return;
         }
 
-        if (! in_array($schedule->type, [ScheduleType::Request], true)) {
-            return;
+        if (in_array($schedule->type, [ScheduleType::Request], true)) {
+            $schedule->dispatchKeyJobs();
         }
 
-        // Key jobs are now dispatched centrally via Schedule::dispatchKeyJobs()
-        // which is called from Schedule::approve(). This observer just ensures
-        // that schedules approved through non-model paths (e.g. bulk actions)
-        // still get their jobs.
-        $schedule->dispatchKeyJobs();
+        $schedule->reconcileNeighborHandovers();
     }
 
     /**

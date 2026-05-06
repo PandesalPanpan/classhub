@@ -16,7 +16,7 @@ class ViewSchedule extends ViewRecord
 {
     protected static string $resource = ScheduleResource::class;
 
-    public function mount(int | string $record): void
+    public function mount(int|string $record): void
     {
         parent::mount($record);
 

@@ -19,7 +19,7 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class EndOfClassJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
+class EndOfClassJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -95,6 +95,26 @@ class EndOfClassJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
             $this->dispatchPostClassCheck();
 
             return;
+        }
+
+        $existingHandover = ScheduleHandover::query()
+            ->where('previous_schedule_id', $this->schedule->id)
+            ->whereNull('resolution_finalized_at')
+            ->where('next_schedule_id', '!=', $nextSchedule->id)
+            ->first();
+
+        if ($existingHandover) {
+            $oldNextScheduleId = $existingHandover->next_schedule_id;
+
+            $existingHandover->update([
+                'next_schedule_id' => $nextSchedule->id,
+            ]);
+
+            Log::info('EndOfClassJob: Corrected stale handover', [
+                'schedule_id' => $this->schedule->id,
+                'old_next_schedule_id' => $oldNextScheduleId,
+                'new_next_schedule_id' => $nextSchedule->id,
+            ]);
         }
 
         if ($nextSchedule->requester_id === $this->schedule->requester_id) {
