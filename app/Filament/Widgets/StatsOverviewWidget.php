@@ -5,6 +5,7 @@ namespace App\Filament\Widgets;
 use App\Models\Room;
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use App\ScheduleType;
 use Filament\Widgets\StatsOverviewWidget as BaseStatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
@@ -23,10 +24,12 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
         $activeRooms = Room::query()->where('is_active', true)->count();
         $todaySchedules = Schedule::query()
             ->where('status', ScheduleStatus::Approved)
+            ->where('type', ScheduleType::Request)
             ->whereDate('start_time', today())
             ->count();
         $pendingRequests = Schedule::query()
             ->where('status', ScheduleStatus::Pending)
+            ->where('type', ScheduleType::Request)
             ->count();
 
         return [

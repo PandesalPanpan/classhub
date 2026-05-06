@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use App\ScheduleType;
 use Carbon\Carbon;
 use Filament\Widgets\ChartWidget;
 
@@ -29,7 +30,8 @@ class RoomUsageWidget extends ChartWidget
     {
         $query = Schedule::query()
             ->with('room')
-            ->where('status', ScheduleStatus::Approved);
+            ->where('status', ScheduleStatus::Approved)
+            ->where('type', ScheduleType::Request);
 
         [$from, $to] = $this->resolveDateRange();
         if ($from && $to) {

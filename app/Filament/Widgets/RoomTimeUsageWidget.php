@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use App\ScheduleType;
 use Carbon\Carbon;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Tables\Columns\TextColumn;
@@ -27,6 +28,7 @@ class RoomTimeUsageWidget extends TableWidget
                 Schedule::query()
                     ->join('rooms', 'rooms.id', '=', 'schedules.room_id')
                     ->where('schedules.status', ScheduleStatus::Approved)
+                    ->where('schedules.type', ScheduleType::Request)
                     ->selectRaw('MIN(schedules.id) as id')
                     ->selectRaw('schedules.room_id')
                     ->selectRaw('rooms.room_number')
