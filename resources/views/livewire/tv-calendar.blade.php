@@ -1,0 +1,158 @@
+<div
+    class="w-full h-screen flex flex-col p-4 overflow-hidden"
+    wire:poll.10s
+    data-rooms="{{ json_encode($rooms) }}"
+    data-events="{{ json_encode($events) }}"
+>
+    <div class="mb-1 flex items-center justify-between gap-4 shrink-0">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">PUP Computer Engineering Classrooms Schedule</h2>
+            <p class="text-gray-600 dark:text-gray-400">View the latest schedules for all classrooms</p>
+        </div>
+        <div class="flex items-center gap-3">
+            @auth
+                <a
+                    href="{{ Route::has('filament.app.pages.request-schedule') ? route('filament.app.pages.request-schedule') : url('/portal/request-schedule') }}"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-md transition-colors cursor-pointer"
+                >
+                    Request Reservation
+                </a>
+                <form method="POST" action="{{ route('filament.app.auth.logout') }}" class="inline">
+                    @csrf
+                    <button
+                        type="submit"
+                        class="px-4 py-2 bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 text-white font-medium rounded-md transition-colors cursor-pointer"
+                    >
+                        Logout
+                    </button>
+                </form>
+            @else
+                <a
+                    href="{{ route('filament.app.auth.login') }}"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-md transition-colors cursor-pointer"
+                >
+                    Login
+                </a>
+            @endauth
+        </div>
+    </div>
+
+    <div id="tv-calendar" class="w-full flex-1 min-h-0" wire:ignore></div>
+</div>
+
+<script>
+    (function() {
+        window.tvCalendarInstance = null;
+
+        const container = document.querySelector('[data-rooms][data-events]');
+        const rooms = container ? JSON.parse(container.dataset.rooms || '[]') : @json($rooms);
+        const events = container ? JSON.parse(container.dataset.events || '[]') : @json($events);
+
+        function initCalendar() {
+            if (typeof window.initTvCalendar === 'function') {
+                window.tvCalendarInstance = window.initTvCalendar(rooms, events);
+            } else {
+                setTimeout(initCalendar, 50);
+            }
+        }
+
+        window.updateTvCalendar = function(newRooms, newEvents) {
+            if (window.tvCalendarInstance) {
+                const currentResources = window.tvCalendarInstance.getResources();
+                const resourceIds = currentResources.map(r => r.id).sort().join(',');
+                const newResourceIds = newRooms.map(r => r.id).sort().join(',');
+
+                if (resourceIds !== newResourceIds) {
+                    window.tvCalendarInstance.setOption('resources', newRooms);
+                }
+
+                const coloredEvents = window.withHashedColors
+                    ? window.withHashedColors(newEvents)
+                    : newEvents;
+                window.tvCalendarInstance.removeAllEvents();
+                if (coloredEvents && coloredEvents.length > 0) {
+                    window.tvCalendarInstance.addEventSource(coloredEvents);
+                }
+            }
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initCalendar);
+        } else {
+            initCalendar();
+        }
+
+        document.addEventListener('livewire:init', () => {
+            Livewire.hook('morph.updated', ({ el }) => {
+                const container = el.querySelector('[data-rooms][data-events]') ||
+                                 (el.hasAttribute('data-rooms') && el.hasAttribute('data-events') ? el : null);
+
+                if (container && window.tvCalendarInstance) {
+                    const rooms = JSON.parse(container.dataset.rooms || '[]');
+                    const events = JSON.parse(container.dataset.events || '[]');
+                    window.updateTvCalendar(rooms, events);
+                }
+            });
+        });
+
+        // Day change refresh
+        (function() {
+            const CHECK_INTERVAL = 60000;
+            let dayChangeTimeout = null;
+            let dayCheckInterval = null;
+            let lastCheckedDate = null;
+
+            function getTimeUntilMidnight() {
+                const now = new Date();
+                const midnight = new Date();
+                midnight.setHours(24, 1, 0, 0);
+                return midnight.getTime() - now.getTime();
+            }
+
+            function scheduleNextDayRefresh() {
+                if (dayChangeTimeout) clearTimeout(dayChangeTimeout);
+                dayChangeTimeout = setTimeout(() => {
+                    const componentEl = document.querySelector('[wire\\:id]');
+                    if (componentEl && typeof Livewire !== 'undefined') {
+                        const wireId = componentEl.getAttribute('wire:id');
+                        if (wireId) {
+                            const component = Livewire.find(wireId);
+                            if (component) component.$refresh();
+                        }
+                    }
+                    lastCheckedDate = new Date().toDateString();
+                    scheduleNextDayRefresh();
+                }, getTimeUntilMidnight());
+            }
+
+            function checkDayChange() {
+                const currentDate = new Date().toDateString();
+                if (lastCheckedDate && lastCheckedDate !== currentDate) {
+                    const componentEl = document.querySelector('[wire\\:id]');
+                    if (componentEl && typeof Livewire !== 'undefined') {
+                        const wireId = componentEl.getAttribute('wire:id');
+                        if (wireId) {
+                            const component = Livewire.find(wireId);
+                            if (component) component.$refresh();
+                        }
+                    }
+                }
+                lastCheckedDate = currentDate;
+            }
+
+            lastCheckedDate = new Date().toDateString();
+            scheduleNextDayRefresh();
+            dayCheckInterval = setInterval(checkDayChange, CHECK_INTERVAL);
+
+            window.addEventListener('beforeunload', function() {
+                if (dayChangeTimeout) clearTimeout(dayChangeTimeout);
+                if (dayCheckInterval) clearInterval(dayCheckInterval);
+            });
+
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) checkDayChange();
+            });
+        })();
+    })();
+</script>
+

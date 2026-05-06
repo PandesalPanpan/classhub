@@ -56,7 +56,7 @@ class RequestScheduleForm
                         ->required()
                         ->native(false)
                         ->displayFormat('F j, Y')
-                        ->minDate(fn () => Setting::get('allow_past_schedule_requests') ? null : now())
+                        ->minDate(fn () => Setting::get('allow_past_schedule_requests') ? null : today())
                         ->helperText(fn () => Setting::get('allow_past_schedule_requests')
                             ? 'You can request schedules in the past and future.'
                             : 'Past schedule requests are currently disabled by the administrator.')

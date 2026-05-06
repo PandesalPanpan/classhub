@@ -4,7 +4,7 @@
     data-rooms="{{ json_encode($rooms) }}"
     data-events="{{ json_encode($events) }}"
 >
-    <div class="mb-1 flex items-center justify-between gap-4 shrink-0">
+    <div class="mb-2 flex items-center justify-between gap-4 shrink-0">
         <div>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">PUP Computer Engineering Classrooms Schedule</h2>
             <p class="text-gray-600 dark:text-gray-400">View the latest schedules for all classrooms</p>
@@ -107,7 +107,7 @@
             console.log('[Day Change Refresh] Initializing day change detection...');
             
             // TEST MODE: Set to true to test with shorter intervals (10 seconds instead of 1 minute)
-            const TEST_MODE = true; // Change to false for production
+            const TEST_MODE = false; // Change to true for local testing
             const CHECK_INTERVAL = TEST_MODE ? 10000 : 60000; // 10 seconds in test mode, 1 minute in production
             
             let dayChangeTimeout = null;

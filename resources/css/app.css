@@ -79,9 +79,8 @@
 }
 
 #classroom-calendar .fc-col-header-cell-cushion {
-    font-size: 11px;
-    padding: 2px 3px;
-    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.3rem;
 }
 
 /* Resource area */
@@ -129,36 +128,29 @@
 
 /* Events */
 #classroom-calendar .fc-event {
-    border-radius: 0.3rem;
+    border-radius: 0.5rem;
     border: none;
     color: var(--fc-event-text-color);
-    padding: 1px 3px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    padding: 0.25rem 0.4rem;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
     background-color: var(--fc-event-bg-color, #3b82f6);
-    overflow: hidden;
-}
-
-#classroom-calendar .fc-event .fc-event-main-frame {
-    justify-content: center;
+    display: flex;
     align-items: center;
+    justify-content: center;
     text-align: center;
 }
 
 #classroom-calendar .fc-event .fc-event-title {
-    font-size: 11px;
-    line-height: 1.25;
-    font-weight: 600;
+    font-size: 0.6rem;
+    line-height: 1.3;
+    font-weight: 700;
     color: var(--fc-event-text-color);
     white-space: normal;
-    word-break: break-word;
-    overflow: hidden;
-}
-
-/* Event time (used in some FullCalendar renderers) */
-#classroom-calendar .fc-event .fc-event-time {
-    font-size: 9px;
-    line-height: 1.1;
-    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
 }
 
 /* Template schedules - grayed out to indicate they're soft schedules */
@@ -184,7 +176,7 @@
     white-space: normal;          /* allow wrapping */
     word-break: break-word;       /* break long words if needed */
     overflow-wrap: anywhere;      /* handle very long tokens */
-    font-size: clamp(8px, 1.6vw, 10px);
+    font-size: clamp(10px, 1.6vw, 8px);
     line-height: 1.2;
 }
 
@@ -198,14 +190,9 @@
     height: 60px;
 } */
 
-#classroom-calendar .fc-timegrid-slot-label {
-    font-size: 11px;
-}
-
-/* Slot height — controlled by JS when expandRows doesn't compress */
-#classroom-calendar .fc-timegrid-slot {
-    height: var(--fc-slot-height, auto) !important;
-    min-height: 0 !important;
+#classroom-calendar .fc-timegrid-slot-lane {
+    min-height: 40px;
+    height: 40px;
 }
 
 /* #classroom-calendar .fc-timeline-event-harness .fc-event-main {
@@ -216,6 +203,189 @@
 /* #classroom-calendar #classroom-calendar > div.fc-view-harness.fc-view-harness-passive > div > table > tbody > tr > td:nth-child(3) > div > div > div > table > tbody > tr:nth-child(1) > td > div > div.fc-timeline-events.fc-scrollgrid-sync-inner > div:nth-child(1) > a */
 
 #classroom-calendar .fc-timeline-events.fc-scrollgrid-sync-inner > div > a {
+    height: auto;
+}
+
+/* ---------- TV Calendar (kiosk/full-viewport version) ---------- */
+/* These rules mirror the optimized styles for the /tv route calendar */
+#tv-calendar {
+    font-family: var(--font-sans);
+    background-color: var(--fc-page-bg-color);
+}
+
+/* Header + toolbar */
+#tv-calendar .fc-toolbar {
+    gap: 0.5rem;
+    color: var(--fc-neutral-text-color);
+}
+
+#tv-calendar .fc-toolbar-title {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--fc-neutral-text-color);
+}
+
+#tv-calendar .fc-button {
+    background-color: #e5e7eb;
+    color: #111827;
+    border: 1px solid var(--fc-border-color);
+    border-radius: 0.5rem;
+    padding: 0.25rem 0.6rem;
+    font-weight: 600;
+}
+
+#tv-calendar .fc-button:hover {
+    background-color: #d1d5db;
+}
+
+#tv-calendar .fc-button-active {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+    color: #ffffff;
+}
+
+/* Column headers */
+#tv-calendar .fc-col-header-cell,
+#tv-calendar .fc-timeline-header-cell {
+    background-color: var(--fc-neutral-bg-color);
+    border-color: var(--fc-border-color);
+}
+
+#tv-calendar .fc-col-header-cell-cushion,
+#tv-calendar .fc-timeline-header-cell-cushion,
+#tv-calendar .fc-timegrid-slot-label {
+    color: var(--fc-neutral-text-color);
+    font-weight: 600;
+}
+
+#tv-calendar .fc-col-header-cell-cushion {
+    font-size: 11px;
+    padding: 2px 3px;
+    font-weight: 700;
+}
+
+/* Resource area */
+#tv-calendar .fc-resource-area,
+#tv-calendar .fc-datagrid {
+    background-color: var(--fc-neutral-bg-color);
+    border-color: var(--fc-border-color);
+}
+
+#tv-calendar .fc-datagrid-cell,
+#tv-calendar .fc-resource-cell {
+    background-color: var(--fc-neutral-bg-color);
+    color: var(--fc-neutral-text-color);
+    border-color: var(--fc-border-color);
+}
+
+#tv-calendar .fc-datagrid-cell-main,
+#tv-calendar .fc-resource-cell-text,
+#tv-calendar .fc-datagrid-cell-cushion,
+#tv-calendar .fc-resource-cell-main,
+#tv-calendar .fc-resource-cell-content,
+#tv-calendar .fc-resource-cell-frame {
+    color: var(--fc-neutral-text-color) !important;
+    font-weight: 600 !important;
+    font-size: 13px;
+}
+
+#tv-calendar .fc-resource-cell-frame {
+    background-color: var(--fc-neutral-bg-color);
+}
+
+#tv-calendar .fc-datagrid-cell-cushion {
+    background-color: var(--fc-neutral-bg-color);
+}
+
+#tv-calendar .fc-datagrid-cell-cushion {
+    padding: 0.45rem 0.5rem;
+}
+
+/* Grid borders */
+#tv-calendar .fc-theme-standard td,
+#tv-calendar .fc-theme-standard th {
+    border-color: var(--fc-border-color);
+}
+
+/* Events */
+#tv-calendar .fc-event {
+    border-radius: 0.3rem;
+    border: none;
+    color: var(--fc-event-text-color);
+    padding: 1px 3px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    background-color: var(--fc-event-bg-color, #3b82f6);
+    overflow: hidden;
+}
+
+#tv-calendar .fc-event .fc-event-main-frame {
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+#tv-calendar .fc-event .fc-event-title {
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 600;
+    color: var(--fc-event-text-color);
+    white-space: normal;
+    word-break: break-word;
+    overflow: hidden;
+}
+
+/* Event time (used in some FullCalendar renderers) */
+#tv-calendar .fc-event .fc-event-time {
+    font-size: 9px;
+    line-height: 1.1;
+    font-weight: 500;
+}
+
+/* Template schedules - grayed out to indicate they're soft schedules */
+#tv-calendar .fc-event.template-schedule {
+    opacity: 0.6;
+    filter: grayscale(0.3);
+}
+
+#tv-calendar .fc-event.template-schedule .fc-event-title {
+    opacity: 0.9;
+}
+
+/* Now indicator */
+#tv-calendar .fc-now-indicator-line {
+    border-color: #ef4444;
+}
+
+#tv-calendar .fc-now-indicator-arrow {
+    border-color: #ef4444;
+}
+
+#tv-calendar .fc-timeline-event-harness .fc-event-title {
+    white-space: normal;          /* allow wrapping */
+    word-break: break-word;       /* break long words if needed */
+    overflow-wrap: anywhere;      /* handle very long tokens */
+    font-size: clamp(8px, 1.6vw, 10px);
+    line-height: 1.2;
+}
+
+#tv-calendar .fc-timegrid-slot-label {
+    font-size: 11px;
+}
+
+/* Prevent time-axis collapse (keeps labels readable, avoids overflow) */
+#tv-calendar .fc-timegrid-axis,
+#tv-calendar .fc-timegrid-axis-frame,
+#tv-calendar .fc-timegrid-slot-label {
+    min-width: 88px;
+}
+
+/* Slot height — controlled by JS when expandRows doesn't compress */
+#tv-calendar .fc-timegrid-slot {
+    height: var(--fc-slot-height, auto) !important;
+    min-height: 0 !important;
+}
+
+#tv-calendar .fc-timeline-events.fc-scrollgrid-sync-inner > div > a {
     height: auto;
 }
 

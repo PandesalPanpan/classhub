@@ -3,6 +3,7 @@
 use App\Http\Controllers\HandoverConfirmationController;
 use App\Livewire\PolicyPage;
 use App\Livewire\PublicCalendar;
+use App\Livewire\TvCalendar;
 use App\Models\Schedule;
 use App\ScheduleStatus;
 use Filament\Notifications\Notification;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 
 Route::get('/', PublicCalendar::class)->name('calendar');
+Route::get('/tv', TvCalendar::class)->name('tv-calendar');
 Route::get('/policy', PolicyPage::class)->name('policy');
 
 Route::middleware('signed')->group(function () {

@@ -1215,7 +1215,7 @@ class CalendarWidget extends FullCalendarWidget
             return;
         }
 
-        if (Carbon::parse($data['start_time'])->isPast()) {
+        if (Carbon::parse($data['start_time'])->startOfDay()->isBefore(today())) {
             Notification::make()
                 ->title('Past schedule requests are disabled')
                 ->body('Past schedule requests are currently disabled by the administrator.')

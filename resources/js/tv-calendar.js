@@ -26,6 +26,7 @@ function hashTitleToColor(title) {
 
 function formatEventTitle(title) {
     if (!title) return '';
+    // Only split at " - " after closing parenthesis (before professor name)
     return title.replace(/\)\s*-\s*/g, ')\n');
 }
 
@@ -38,25 +39,23 @@ function formatEventTimeRange(start, end) {
     return `${fmt(start)}-${fmt(end)}`;
 }
 
-function getScrollTimeNearNow() {
-    const now = new Date();
-    const scrollHour = Math.max(7, now.getHours() - 1);
-    return `${String(scrollHour).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
-}
-
 function withHashedColors(evts) {
     return (evts || []).map((evt) => {
+        // Template schedules are "soft" schedules that can be overridden
+        // They should be grayed out to indicate they're not final
         const isTemplate = evt.type === 'TEMPLATE';
 
         if (isTemplate) {
+            // Gray color with reduced opacity for template schedules
+            // Ensure type is preserved in extendedProps for FullCalendar
             return {
                 ...evt,
-                backgroundColor: '#6b7280',
+                backgroundColor: '#6b7280', // gray-500
                 borderColor: '#6b7280',
                 classNames: ['template-schedule'],
                 extendedProps: {
                     ...(evt.extendedProps || {}),
-                    type: evt.type,
+                    type: evt.type, // Preserve type in extendedProps
                 },
             };
         }
@@ -68,20 +67,93 @@ function withHashedColors(evts) {
             borderColor: color,
             extendedProps: {
                 ...(evt.extendedProps || {}),
-                type: evt.type,
+                type: evt.type, // Preserve type in extendedProps for all events
             },
         };
     });
 }
 
+// Expose for Livewire updates
 window.withHashedColors = withHashedColors;
 
-window.initClassroomCalendar = function (rooms, events) {
-    const calendarEl = document.getElementById('classroom-calendar');
+function ensureNoScroll(calendarEl, calendar) {
+    const scroller =
+        calendarEl.querySelector('.fc-scroller[style*="overflow"]') ||
+        calendarEl.querySelector('.fc-scroller-harness .fc-scroller');
+    if (!scroller) return;
+
+    const hasOverflow = scroller.scrollHeight > scroller.clientHeight + 2;
+
+    // If we previously forced a slot height, but overflow is gone now (because
+    // layout settled / fonts loaded / resize), clear it to restore natural sizing.
+    if (!hasOverflow) {
+        if (calendarEl.style.getPropertyValue('--fc-slot-height')) {
+            calendarEl.style.removeProperty('--fc-slot-height');
+            calendar.updateSize();
+        }
+        return;
+    }
+
+    const slotsTable = scroller.querySelector('.fc-timegrid-slots table');
+    if (!slotsTable) return;
+    const slotRows = slotsTable.querySelectorAll('tr');
+    if (slotRows.length === 0) return;
+
+    const slotHeight = Math.floor(scroller.clientHeight / slotRows.length);
+    calendarEl.style.setProperty('--fc-slot-height', slotHeight + 'px');
+    calendar.updateSize();
+}
+
+function stabilizeLayout(calendarEl, calendar) {
+    const run = () => {
+        calendar.updateSize();
+        requestAnimationFrame(() => ensureNoScroll(calendarEl, calendar));
+    };
+
+    // Hide calendar until layout is stable to prevent flash of incorrect width
+    calendarEl.style.visibility = 'hidden';
+
+    // Wait for fonts to load (affects header height → flex layout → container width)
+    const fontsReady = document.fonts?.ready || Promise.resolve();
+
+    fontsReady.then(() => {
+        // Double-rAF ensures the browser has completed layout and paint
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                run();
+                calendarEl.style.visibility = '';
+            });
+        });
+    });
+
+    // Also handle resize events
+    let ro = null;
+    if (typeof ResizeObserver !== 'undefined') {
+        ro = new ResizeObserver(() => {
+            requestAnimationFrame(run);
+        });
+        ro.observe(calendarEl);
+        if (calendarEl.parentElement) {
+            ro.observe(calendarEl.parentElement);
+        }
+    }
+
+    return () => {
+        if (ro) ro.disconnect();
+    };
+}
+
+window.initTvCalendar = function (rooms, events) {
+    const calendarEl = document.getElementById('tv-calendar');
 
     if (!calendarEl || calendarEl.dataset.initialized) return;
 
     calendarEl.dataset.initialized = 'true';
+
+    const calculateAvailableCalendarHeight = () => {
+        const topOffset = calendarEl.getBoundingClientRect().top;
+        return Math.max(300, window.innerHeight - topOffset - 16);
+    };
 
     const calendar = new Calendar(calendarEl, {
         schedulerLicenseKey: 'GPL-My-Project-Is-Open-Source',
@@ -96,12 +168,10 @@ window.initClassroomCalendar = function (rooms, events) {
         events: withHashedColors(events),
         resourceAreaWidth: '10%',
         slotMinTime: '07:00:00',
-        slotMaxTime: '22:00:00',
+        slotMaxTime: '21:30:00',
         slotDuration: '00:30:00',
-        slotLabelInterval: '00:30',
-        height: '85vh',
-        scrollTime: getScrollTimeNearNow(),
-        scrollTimeReset: false,
+        slotLabelInterval: '01:00',
+        height: calculateAvailableCalendarHeight(),
         editable: false,
         selectable: false,
         selectMirror: true,
@@ -112,13 +182,11 @@ window.initClassroomCalendar = function (rooms, events) {
         expandRows: true,
         slotLabelClassNames: 'min-w-[100px]',
         eventContent: function(arg) {
-            const timeStr = formatEventTimeRange(arg.event.start, arg.event.end);
             const formattedTitle = formatEventTitle(arg.event.title);
             const htmlTitle = formattedTitle.replace(/\n/g, '<br>');
             return {
                 html:
                     '<div class="fc-event-main-frame">' +
-                    '<div class="fc-event-time">' + timeStr + '</div>' +
                     '<div class="fc-event-title">' + htmlTitle + '</div>' +
                     '</div>'
             };
@@ -139,6 +207,8 @@ window.initClassroomCalendar = function (rooms, events) {
                 document.body.appendChild(tooltip);
             }
 
+            // Check if this is a template schedule by checking the event's type property
+            // FullCalendar stores custom properties in extendedProps
             const eventType = event.extendedProps?.type;
             const isTemplateSchedule = eventType === 'TEMPLATE';
 
@@ -190,13 +260,16 @@ window.initClassroomCalendar = function (rooms, events) {
 
     calendar.render();
 
-    const scrollToNowInterval = setInterval(() => {
-        calendar.scrollToTime(getScrollTimeNearNow());
-    }, 5 * 60 * 1000);
+    const cleanupStableSizer = stabilizeLayout(calendarEl, calendar);
 
-    window.addEventListener('beforeunload', () => {
-        clearInterval(scrollToNowInterval);
-    }, { once: true });
+    window.addEventListener('resize', () => {
+        calendar.setOption('height', calculateAvailableCalendarHeight());
+        requestAnimationFrame(() => ensureNoScroll(calendarEl, calendar));
+    });
+
+    // For safety, keep a cleanup handle on the element (not used yet).
+    calendarEl._fcCleanup = cleanupStableSizer;
 
     return calendar;
 };
+
