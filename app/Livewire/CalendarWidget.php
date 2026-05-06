@@ -103,6 +103,36 @@ class CalendarWidget extends FullCalendarWidget
                         $fillData['start_time'] = $arguments['start'] ?? null;
                         $fillData['end_time'] = $arguments['end'] ?? null;
 
+                        // Clamp to app-panel time bounds (7:30 AM – 9:00 PM)
+                        if ($this->isAppPanel() && isset($fillData['start_time'], $fillData['end_time'])) {
+                            $start = Carbon::parse($fillData['start_time']);
+                            $end = Carbon::parse($fillData['end_time']);
+                            $earliest = $start->copy()->setTime(
+                                \App\Filament\Pages\Schemas\ScheduleFormOptions::APP_EARLIEST_HOUR,
+                                \App\Filament\Pages\Schemas\ScheduleFormOptions::APP_EARLIEST_MINUTE
+                            );
+                            $latest = $start->copy()->setTime(
+                                \App\Filament\Pages\Schemas\ScheduleFormOptions::APP_LATEST_HOUR,
+                                \App\Filament\Pages\Schemas\ScheduleFormOptions::APP_LATEST_MINUTE
+                            );
+
+                            if ($start->lt($earliest)) {
+                                $start = $earliest->copy();
+                            }
+                            if ($end->gt($latest)) {
+                                $end = $latest->copy();
+                            }
+                            if ($end->lte($start)) {
+                                $end = $start->copy()->addMinutes(60);
+                                if ($end->gt($latest)) {
+                                    $end = $latest->copy();
+                                }
+                            }
+
+                            $fillData['start_time'] = $start->format('Y-m-d H:i:s');
+                            $fillData['end_time'] = $end->format('Y-m-d H:i:s');
+                        }
+
                         // If start_time and end_time is set, calculate duration_minutes
                         // Round to nearest 30 min to match RequestScheduleForm options (30–810)
                         if (isset($fillData['start_time'], $fillData['end_time'])) {
@@ -194,6 +224,31 @@ class CalendarWidget extends FullCalendarWidget
                     }
 
                     $this->ensurePastScheduleAllowed($data);
+
+                    if ($this->isAppPanel() && isset($data['start_time'], $data['end_time'])) {
+                        $start = Carbon::parse($data['start_time']);
+                        $end = Carbon::parse($data['end_time']);
+                        $earliest = $start->copy()->setTime(
+                            \App\Filament\Pages\Schemas\ScheduleFormOptions::APP_EARLIEST_HOUR,
+                            \App\Filament\Pages\Schemas\ScheduleFormOptions::APP_EARLIEST_MINUTE
+                        );
+                        $latest = $start->copy()->setTime(
+                            \App\Filament\Pages\Schemas\ScheduleFormOptions::APP_LATEST_HOUR,
+                            \App\Filament\Pages\Schemas\ScheduleFormOptions::APP_LATEST_MINUTE
+                        );
+
+                        if ($start->lt($earliest) || $end->gt($latest)) {
+                            Notification::make()
+                                ->title('Time out of range')
+                                ->body('Schedules must start at or after 7:30 AM and end by 9:00 PM.')
+                                ->danger()
+                                ->send();
+
+                            throw ValidationException::withMessages([
+                                'start_time' => 'Schedules must start at or after 7:30 AM and end by 9:00 PM.',
+                            ]);
+                        }
+                    }
 
                     // Overlap validation.
                     // App panel request flow should only block when an approved schedule exists,

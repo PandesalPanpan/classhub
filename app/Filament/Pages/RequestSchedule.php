@@ -111,6 +111,31 @@ class RequestSchedule extends Page implements HasTable
                             $data['end_time'] = $start->copy()->addMinutes($data['duration_minutes'])->format('Y-m-d H:i:s');
                         }
 
+                        if (isset($data['start_time'], $data['end_time'])) {
+                            $start = Carbon::parse($data['start_time']);
+                            $end = Carbon::parse($data['end_time']);
+                            $earliest = $start->copy()->setTime(
+                                \App\Filament\Pages\Schemas\ScheduleFormOptions::APP_EARLIEST_HOUR,
+                                \App\Filament\Pages\Schemas\ScheduleFormOptions::APP_EARLIEST_MINUTE
+                            );
+                            $latest = $start->copy()->setTime(
+                                \App\Filament\Pages\Schemas\ScheduleFormOptions::APP_LATEST_HOUR,
+                                \App\Filament\Pages\Schemas\ScheduleFormOptions::APP_LATEST_MINUTE
+                            );
+
+                            if ($start->lt($earliest) || $end->gt($latest)) {
+                                Notification::make()
+                                    ->title('Time out of range')
+                                    ->body('Schedules must start at or after 7:30 AM and end by 9:00 PM.')
+                                    ->danger()
+                                    ->send();
+
+                                throw ValidationException::withMessages([
+                                    'start_time' => 'Schedules must start at or after 7:30 AM and end by 9:00 PM.',
+                                ]);
+                            }
+                        }
+
                         return $data;
                     })
                     ->action(function (array $data, $livewire) {

@@ -76,7 +76,7 @@ class RequestScheduleForm
                     Select::make('start_time_slot')
                         ->label('Time')
                         ->options(function (Get $get): array {
-                            $allOptions = ScheduleFormOptions::timeSlotOptions();
+                            $allOptions = ScheduleFormOptions::appTimeSlotOptions();
 
                             if (Setting::get('allow_past_schedule_requests')) {
                                 return $allOptions;
@@ -110,7 +110,7 @@ class RequestScheduleForm
 
                     Select::make('duration_minutes')
                         ->label('Duration')
-                        ->options(ScheduleFormOptions::durationMinutesOptions())
+                        ->options(fn (Get $get): array => ScheduleFormOptions::appDurationOptions($get('start_time_slot')))
                         ->default(60)
                         ->required()
                         ->live()

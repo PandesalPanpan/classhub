@@ -8,6 +8,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\ViewField;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 
 class FindAvailableRoomsForm
 {
@@ -34,13 +35,17 @@ class FindAvailableRoomsForm
                         ->minDate(fn () => Setting::get('allow_past_schedule_requests') ? null : today()),
                     Select::make('start_time')
                         ->label('Start time')
-                        ->options(ScheduleFormOptions::timeSlotOptions())
+                        ->options(fn (): array => Filament::getCurrentPanel()?->getId() === 'app'
+                            ? ScheduleFormOptions::appTimeSlotOptions()
+                            : ScheduleFormOptions::timeSlotOptions())
                         ->required()
                         ->searchable()
                         ->live(),
                     Select::make('duration_minutes')
                         ->label('Duration')
-                        ->options(ScheduleFormOptions::durationMinutesOptions())
+                        ->options(fn (Get $get): array => Filament::getCurrentPanel()?->getId() === 'app'
+                            ? ScheduleFormOptions::appDurationOptions($get('start_time'))
+                            : ScheduleFormOptions::durationMinutesOptions())
                         ->default(60)
                         ->required(),
                 ])
