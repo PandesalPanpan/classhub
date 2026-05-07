@@ -34,6 +34,11 @@ class ScheduleHandover extends Model
         return $this->belongsTo(Schedule::class, 'next_schedule_id');
     }
 
+    public function forcedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'forced_by');
+    }
+
     public function isBothConfirmed(): bool
     {
         return $this->previous_confirmed_at !== null && $this->next_confirmed_at !== null;
@@ -47,6 +52,11 @@ class ScheduleHandover extends Model
     public function hasAnyDispute(): bool
     {
         return $this->previous_disputed_at !== null || $this->next_disputed_at !== null;
+    }
+
+    public function wasForced(): bool
+    {
+        return $this->forced_by !== null;
     }
 
     public function markFinalized(): void

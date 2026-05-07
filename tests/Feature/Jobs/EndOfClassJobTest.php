@@ -157,6 +157,58 @@ class EndOfClassJobTest extends TestCase
         $this->assertSame(1, ScheduleHandover::where('previous_schedule_id', $schedule->id)->count());
     }
 
+    public function test_template_schedule_is_not_treated_as_handover_target(): void
+    {
+        Mail::fake();
+        Queue::fake();
+
+        [$schedule] = $this->makeEndedScheduleWithKey();
+
+        Schedule::factory()->approved()->create([
+            'room_id' => $schedule->room_id,
+            'type' => \App\ScheduleType::Template,
+            'start_time' => $schedule->end_time->copy()->addMinutes(5),
+            'end_time' => $schedule->end_time->copy()->addHour(),
+        ]);
+
+        (new EndOfClassJob($schedule))->handle();
+
+        $this->assertDatabaseMissing('schedule_handovers', [
+            'previous_schedule_id' => $schedule->id,
+        ]);
+
+        Queue::assertPushed(PostClassCheckJob::class, 1);
+    }
+
+    public function test_request_schedule_is_selected_as_handover_target_even_when_template_exists(): void
+    {
+        Mail::fake();
+        Queue::fake();
+
+        [$schedule] = $this->makeEndedScheduleWithKey();
+
+        Schedule::factory()->approved()->create([
+            'room_id' => $schedule->room_id,
+            'type' => \App\ScheduleType::Template,
+            'start_time' => $schedule->end_time->copy()->addMinutes(5),
+            'end_time' => $schedule->end_time->copy()->addHour(),
+        ]);
+
+        $nextRequest = Schedule::factory()->approved()->create([
+            'room_id' => $schedule->room_id,
+            'type' => \App\ScheduleType::Request,
+            'start_time' => $schedule->end_time->copy()->addMinutes(10),
+            'end_time' => $schedule->end_time->copy()->addHours(2),
+        ]);
+
+        (new EndOfClassJob($schedule))->handle();
+
+        $this->assertDatabaseHas('schedule_handovers', [
+            'previous_schedule_id' => $schedule->id,
+            'next_schedule_id' => $nextRequest->id,
+        ]);
+    }
+
     private function makeEndedScheduleWithKey(): array
     {
         $room = Room::factory()->create();

@@ -5,7 +5,9 @@ namespace App\Providers\Filament;
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\BulkSchedule;
 use App\Filament\Pages\JobQueue;
+use App\Filament\Pages\KeyEvents;
 use App\Filament\Pages\LogViewer;
+use App\Filament\Pages\ScheduleHandovers;
 use App\Filament\Pages\ManageSettings;
 use App\Filament\Resources\Rooms\RoomResource;
 use App\Filament\Resources\Schedules\ScheduleResource;
@@ -56,6 +58,8 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 Dashboard::class,
                 BulkSchedule::class,
+                KeyEvents::class,
+                ScheduleHandovers::class,
                 JobQueue::class,
                 LogViewer::class,
                 ManageSettings::class,

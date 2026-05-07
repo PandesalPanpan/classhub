@@ -1214,6 +1214,7 @@ class CalendarWidget extends FullCalendarWidget
                     'resolution_finalized_at' => null,
                     'previous_confirmed_at' => now(),
                     'next_confirmed_at' => now(),
+                    'forced_by' => Auth::id(),
                 ]);
 
                 HandoverOperationalService::apply($handover);

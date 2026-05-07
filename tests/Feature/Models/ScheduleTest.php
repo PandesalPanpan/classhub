@@ -105,6 +105,52 @@ class ScheduleTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_find_next_schedule_in_handover_window_excludes_templates(): void
+    {
+        $room = Room::factory()->create();
+        Key::factory()->create(['room_id' => $room->id]);
+
+        $schedule = Schedule::factory()->approved()->create([
+            'room_id' => $room->id,
+            'start_time' => now()->subHours(2),
+            'end_time' => now()->subMinutes(5),
+        ]);
+
+        Schedule::factory()->approved()->create([
+            'room_id' => $room->id,
+            'type' => ScheduleType::Template,
+            'start_time' => $schedule->end_time->copy()->addMinutes(5),
+            'end_time' => $schedule->end_time->copy()->addHour(),
+        ]);
+
+        $result = $schedule->findNextScheduleInHandoverWindow();
+
+        $this->assertNull($result);
+    }
+
+    public function test_find_next_schedule_in_handover_window_returns_request_schedule(): void
+    {
+        $room = Room::factory()->create();
+        Key::factory()->create(['room_id' => $room->id]);
+
+        $schedule = Schedule::factory()->approved()->create([
+            'room_id' => $room->id,
+            'start_time' => now()->subHours(2),
+            'end_time' => now()->subMinutes(5),
+        ]);
+
+        $next = Schedule::factory()->approved()->create([
+            'room_id' => $room->id,
+            'type' => ScheduleType::Request,
+            'start_time' => $schedule->end_time->copy()->addMinutes(5),
+            'end_time' => $schedule->end_time->copy()->addHour(),
+        ]);
+
+        $result = $schedule->findNextScheduleInHandoverWindow();
+
+        $this->assertSame($next->id, $result?->id);
+    }
+
     public function test_observer_dispatches_key_jobs_on_status_change(): void
     {
         Queue::fake();

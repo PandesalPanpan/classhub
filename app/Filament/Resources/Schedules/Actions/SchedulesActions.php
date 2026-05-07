@@ -16,6 +16,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Section;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class SchedulesActions
 {
@@ -304,6 +305,7 @@ class SchedulesActions
                 $handover->update([
                     'previous_confirmed_at' => now(),
                     'next_confirmed_at' => now(),
+                    'forced_by' => Auth::id(),
                 ]);
 
                 HandoverOperationalService::apply($handover);
@@ -407,6 +409,7 @@ class SchedulesActions
                     'resolution_finalized_at' => null,
                     'previous_confirmed_at' => now(),
                     'next_confirmed_at' => now(),
+                    'forced_by' => Auth::id(),
                 ]);
 
                 HandoverOperationalService::apply($handover);

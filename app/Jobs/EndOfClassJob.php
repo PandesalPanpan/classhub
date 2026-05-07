@@ -8,6 +8,7 @@ use App\Models\Schedule;
 use App\Models\ScheduleHandover;
 use App\Models\Setting;
 use App\ScheduleStatus;
+use App\ScheduleType;
 use App\Services\EmailNotificationService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -184,6 +185,7 @@ class EndOfClassJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
         return Schedule::query()
             ->where('room_id', $this->schedule->room_id)
             ->where('id', '!=', $this->schedule->id)
+            ->where('type', '!=', ScheduleType::Template)
             ->where('status', ScheduleStatus::Approved)
             ->where('start_time', '>=', $this->schedule->end_time)
             ->where('start_time', '<=', $windowEnd)

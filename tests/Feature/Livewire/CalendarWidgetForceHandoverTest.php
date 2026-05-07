@@ -81,6 +81,7 @@ class CalendarWidgetForceHandoverTest extends TestCase
         $this->assertNotNull($handover->previous_confirmed_at);
         $this->assertNotNull($handover->next_confirmed_at);
         $this->assertNotNull($handover->resolution_finalized_at);
+        $this->assertSame($admin->id, $handover->forced_by);
 
         $this->assertDatabaseHas('key_events', [
             'key_id' => $key->id,
