@@ -104,10 +104,14 @@ class ManageSettings extends Page implements HasForms
                         Toggle::make('allow_app_registration')
                             ->label('Allow app panel self-registration')
                             ->required(),
+                        Toggle::make('auto_verify_registration')
+                            ->label('Auto-verify new registrations')
+                            ->helperText('When enabled, new users are instantly verified without email confirmation.')
+                            ->required(),
                     ])
                     ->columns([
                         'default' => 1,
-                        'md' => 3,
+                        'md' => 2,
                     ]),
                 Section::make('Policy Page')
                     ->description('Publish the public policy page content shown on /policy using Markdown.')
@@ -143,6 +147,7 @@ class ManageSettings extends Page implements HasForms
             'handover_enabled' => ['required', 'boolean'],
             'allow_past_schedule_requests' => ['required', 'boolean'],
             'allow_app_registration' => ['required', 'boolean'],
+            'auto_verify_registration' => ['required', 'boolean'],
             'policy_content' => ['required', 'string'],
             'reservation_rules_content' => ['required', 'string'],
         ], [

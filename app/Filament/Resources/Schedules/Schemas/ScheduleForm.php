@@ -3,6 +3,9 @@
 namespace App\Filament\Resources\Schedules\Schemas;
 
 use App\Filament\Pages\Schemas\ScheduleFormOptions;
+use App\KeyStatus;
+use App\Models\Key;
+use App\Models\KeyEvent;
 use App\ScheduleStatus;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
@@ -53,7 +56,8 @@ class ScheduleForm
                         })
                         ->getOptionLabelFromRecordUsing(fn ($record) => $record->room_full_label)
                         ->label('Room')
-                        ->required(),
+                        ->required()
+                        ->live(),
                     Select::make('status')
                         ->label('Status')
                         ->options(ScheduleStatus::class)
@@ -95,8 +99,10 @@ class ScheduleForm
             Section::make('Time & Date')
                 ->description('When this schedule takes place.')
                 ->schema([
-                    Hidden::make('start_time'),
+                    Hidden::make('start_time')
+                        ->required(),
                     Hidden::make('end_time')
+                        ->required()
                         ->rules([
                             fn (Get $get): \Closure => function (string $attribute, $value, \Closure $fail) use ($get) {
                                 $startTime = $get('start_time');
@@ -178,6 +184,56 @@ class ScheduleForm
                     'default' => 1,
                     'md' => 2,
                 ]),
+            Section::make('Key Event Linking')
+                ->description('If the room\'s key was already taken before this schedule, you can link the key event here so key verification recognizes it.')
+                ->schema([
+                    Select::make('link_key_event_id')
+                        ->label('Link Unlinked Key Event')
+                        ->options(function (Get $get): array {
+                            $roomId = $get('room_id');
+                            if (! $roomId) {
+                                return [];
+                            }
+
+                            $key = Key::where('room_id', $roomId)->first();
+                            if (! $key) {
+                                return [];
+                            }
+
+                            return KeyEvent::where('key_id', $key->id)
+                                ->where('status', KeyStatus::Used->value)
+                                ->whereNull('schedule_id')
+                                ->where('source', 'iot')
+                                ->orderByDesc('occurred_at')
+                                ->limit(10)
+                                ->get()
+                                ->mapWithKeys(fn (KeyEvent $event): array => [
+                                    $event->id => 'Key taken at '.$event->occurred_at->format('M j, Y g:i A').' (IoT)',
+                                ])
+                                ->toArray();
+                        })
+                        ->placeholder('Select an unlinked key event...')
+                        ->helperText('Only IoT-reported key events with no linked schedule are shown.')
+                        ->searchable()
+                        ->nullable(),
+                ])
+                ->visible(function (Get $get): bool {
+                    $roomId = $get('room_id');
+                    if (! $roomId) {
+                        return false;
+                    }
+
+                    $key = Key::where('room_id', $roomId)->first();
+                    if (! $key) {
+                        return false;
+                    }
+
+                    return KeyEvent::where('key_id', $key->id)
+                        ->where('status', KeyStatus::Used->value)
+                        ->whereNull('schedule_id')
+                        ->where('source', 'iot')
+                        ->exists();
+                }),
             Section::make('Additional Information')
                 ->description('Any additional notes or remarks.')
                 ->schema([

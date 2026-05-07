@@ -8,6 +8,7 @@ use App\Filament\Resources\Schedules\Tables\ScheduleTableFilters;
 use App\Models\Schedule;
 use App\Models\Setting;
 use App\ScheduleStatus;
+use App\ScheduleType;
 use App\Services\EmailNotificationService;
 use App\Services\ScheduleNotificationService;
 use App\Services\ScheduleOverlapChecker;
@@ -148,11 +149,24 @@ class RequestSchedule extends Page implements HasTable
                         // Requesters can submit multiple pending requests for the same slot;
                         // only approved schedules should block new requests.
                         if (! empty($data['room_id'])) {
+                            $startCarbon = Carbon::parse($data['start_time']);
+                            $endCarbon = Carbon::parse($data['end_time']);
+
+                            $templateIdsToIgnore = Schedule::query()
+                                ->where('room_id', $data['room_id'])
+                                ->where('type', ScheduleType::Template)
+                                ->where('status', ScheduleStatus::Approved)
+                                ->where('start_time', '<', $endCarbon)
+                                ->where('end_time', '>', $startCarbon)
+                                ->pluck('id')
+                                ->all();
+
                             if (ScheduleOverlapChecker::hasOverlap(
                                 $data['room_id'],
-                                Carbon::parse($data['start_time']),
-                                Carbon::parse($data['end_time']),
-                                [ScheduleStatus::Approved]
+                                $startCarbon,
+                                $endCarbon,
+                                [ScheduleStatus::Approved],
+                                excludeIds: $templateIdsToIgnore
                             )) {
                                 Notification::make()
                                     ->title('Schedule conflict')

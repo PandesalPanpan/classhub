@@ -85,6 +85,31 @@ class VerifyScheduleKeyUsageJob implements ShouldBeUniqueUntilProcessing, Should
             })
             ->exists();
 
+        // Fallback: if the key is currently USED but no event matched above,
+        // the key was likely taken before the schedule was created/approved.
+        // Adopt the most recent orphan USED event for this key.
+        if (! $wasUsed && $key->status === KeyStatus::Used) {
+            $orphanEvent = KeyEvent::where('key_id', $key->id)
+                ->where('status', KeyStatus::Used->value)
+                ->whereNull('schedule_id')
+                ->where('source', 'iot')
+                ->where('occurred_at', '<=', $this->schedule->end_time)
+                ->orderByDesc('occurred_at')
+                ->first();
+
+            if ($orphanEvent) {
+                $orphanEvent->update(['schedule_id' => $this->schedule->id]);
+
+                Log::info('VerifyScheduleKeyUsageJob: Adopted orphan key event', [
+                    'schedule_id' => $this->schedule->id,
+                    'key_event_id' => $orphanEvent->id,
+                    'event_occurred_at' => $orphanEvent->occurred_at,
+                ]);
+
+                $wasUsed = true;
+            }
+        }
+
         if ($wasUsed) {
             // Queue end-of-class evaluation at exactly schedule end.
             $endOfClassRunAt = $this->schedule->end_time;

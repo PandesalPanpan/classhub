@@ -76,12 +76,22 @@ class Schedule extends Model
 
     public function approve(): void
     {
+        $templateIdsToIgnore = Schedule::query()
+            ->where('room_id', $this->room_id)
+            ->where('type', ScheduleType::Template)
+            ->where('status', ScheduleStatus::Approved)
+            ->where('start_time', '<', $this->end_time)
+            ->where('end_time', '>', $this->start_time)
+            ->pluck('id')
+            ->all();
+
         if (ScheduleOverlapChecker::hasOverlap(
             $this->room_id,
             $this->start_time->copy(),
             $this->end_time->copy(),
             [ScheduleStatus::Approved],
-            $this->id
+            $this->id,
+            $templateIdsToIgnore
         )) {
             throw ValidationException::withMessages([
                 'room_id' => 'This room already has an approved schedule during the selected time.',
@@ -99,6 +109,8 @@ class Schedule extends Model
 
         // Send email notification to requester
         EmailNotificationService::sendScheduleApproved($this, $nextSchedule);
+
+        $this->cancelOverlappingTemplates();
 
         // Dispatch key-related jobs.
         // The observer will also call this for ScheduleType::Request, so we skip
@@ -212,6 +224,35 @@ class Schedule extends Model
             'old_next_schedule_id' => $oldNextScheduleId,
             'new_next_schedule_id' => $this->id,
         ]);
+    }
+
+    public function cancelOverlappingTemplates(): void
+    {
+        if ($this->type === ScheduleType::Template) {
+            return;
+        }
+
+        if ($this->status !== ScheduleStatus::Approved) {
+            return;
+        }
+
+        $overlapping = Schedule::query()
+            ->where('room_id', $this->room_id)
+            ->where('id', '!=', $this->id)
+            ->where('type', ScheduleType::Template)
+            ->where('status', ScheduleStatus::Approved)
+            ->where('start_time', '<', $this->end_time)
+            ->where('end_time', '>', $this->start_time)
+            ->get();
+
+        foreach ($overlapping as $template) {
+            $template->update(['status' => ScheduleStatus::Cancelled]);
+
+            Log::info('Schedule::cancelOverlappingTemplates: Cancelled overlapping template', [
+                'approved_schedule_id' => $this->id,
+                'cancelled_template_id' => $template->id,
+            ]);
+        }
     }
 
     public function reject(): void

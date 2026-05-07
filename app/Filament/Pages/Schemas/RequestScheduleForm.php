@@ -49,7 +49,8 @@ class RequestScheduleForm
             Section::make('Schedule')
                 ->description('Choose when you need the room. End time is calculated automatically from the duration.')
                 ->schema([
-                    Hidden::make('start_time'),
+                    Hidden::make('start_time')
+                        ->required(),
 
                     DatePicker::make('start_date')
                         ->label('Date')
@@ -88,9 +89,10 @@ class RequestScheduleForm
                             }
 
                             $nowTime = Carbon::now()->format('H:i');
+                            $currentSlot = $get('start_time_slot');
 
                             return collect($allOptions)
-                                ->filter(fn (string $label, string $value) => $value >= $nowTime)
+                                ->filter(fn (string $label, string $value) => $value >= $nowTime || $value === $currentSlot)
                                 ->all();
                         })
                         ->required()
@@ -105,12 +107,30 @@ class RequestScheduleForm
                         })
                         ->afterStateUpdated(function (Get $get, Set $set) {
                             static::updateStartTime($get, $set);
+                            static::capDurationIfNeeded($get, $set);
                             static::updateEndTime($get, $set);
                         }),
 
                     Select::make('duration_minutes')
                         ->label('Duration')
-                        ->options(fn (Get $get): array => ScheduleFormOptions::appDurationOptions($get('start_time_slot')))
+                        ->options(function (Get $get): array {
+                            $options = ScheduleFormOptions::appDurationOptions($get('start_time_slot'));
+                            $current = $get('duration_minutes');
+
+                            if ($current !== null && $current !== '' && ! array_key_exists((int) $current, $options)) {
+                                $currentInt = (int) $current;
+                                $label = match (true) {
+                                    $currentInt < 60 => "{$currentInt} minutes",
+                                    $currentInt % 60 === 0 => (int) ($currentInt / 60).' '.str('hour')->plural((int) ($currentInt / 60)),
+                                    default => (int) ($currentInt / 60).'.5 hours',
+                                };
+
+                                $options[$currentInt] = $label;
+                                ksort($options);
+                            }
+
+                            return $options;
+                        })
                         ->default(60)
                         ->required()
                         ->live()
@@ -144,6 +164,24 @@ class RequestScheduleForm
         }
 
         $set('start_time', Carbon::parse($date)->setTimeFromTimeString($timeSlot.':00')->format('Y-m-d H:i:s'));
+    }
+
+    protected static function capDurationIfNeeded(Get $get, Set $set): void
+    {
+        $timeSlot = $get('start_time_slot');
+        $duration = $get('duration_minutes');
+
+        if (! $timeSlot || $duration === null || $duration === '') {
+            return;
+        }
+
+        $availableOptions = ScheduleFormOptions::appDurationOptions($timeSlot);
+        $durationInt = (int) $duration;
+
+        if (! array_key_exists($durationInt, $availableOptions)) {
+            $maxAvailable = ! empty($availableOptions) ? max(array_keys($availableOptions)) : 30;
+            $set('duration_minutes', $maxAvailable);
+        }
     }
 
     protected static function updateEndTime(Get $get, Set $set): void

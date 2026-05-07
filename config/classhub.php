@@ -9,6 +9,7 @@ return [
         'handover_enabled' => true,
         'allow_past_schedule_requests' => false,
         'allow_app_registration' => true,
+        'auto_verify_registration' => false,
         'reservation_rules_content' => <<<'MARKDOWN'
 ### Reservations and Priority Rules
 

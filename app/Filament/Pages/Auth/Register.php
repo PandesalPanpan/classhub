@@ -118,6 +118,10 @@ class Register extends BaseRegister
         // Remove the field so it doesn't try to insert into a non-existent column
         unset($data['is_class_representative']);
 
+        if ((bool) Setting::get('auto_verify_registration')) {
+            $data['email_verified_at'] = now();
+        }
+
         return $data;
     }
 }

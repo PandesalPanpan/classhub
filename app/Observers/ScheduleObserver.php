@@ -23,6 +23,7 @@ class ScheduleObserver
 
         $schedule->dispatchKeyJobs();
         $schedule->reconcileNeighborHandovers();
+        $schedule->cancelOverlappingTemplates();
     }
 
     /**

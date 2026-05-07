@@ -21,6 +21,72 @@ class VerifyScheduleKeyUsageJobTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_adopts_orphan_key_event_when_key_is_currently_used(): void
+    {
+        Queue::fake();
+
+        [$schedule, $key] = $this->makeApprovedScheduleWithKey();
+
+        // Create an orphan USED event that occurred BEFORE the early_key_pickup window
+        KeyEvent::factory()->create([
+            'key_id' => $key->id,
+            'schedule_id' => null,
+            'status' => KeyStatus::Used->value,
+            'source' => 'iot',
+            'occurred_at' => $schedule->start_time->copy()->subHours(2),
+        ]);
+
+        (new VerifyScheduleKeyUsageJob($schedule))->handle();
+
+        $this->assertSame(ScheduleStatus::Approved, $schedule->fresh()->status);
+        Queue::assertPushed(EndOfClassJob::class, 1);
+
+        $this->assertSame(
+            $schedule->id,
+            KeyEvent::where('key_id', $key->id)->whereNotNull('schedule_id')->first()->schedule_id
+        );
+    }
+
+    public function test_does_not_adopt_orphan_event_when_key_is_stored(): void
+    {
+        Mail::fake();
+        Queue::fake();
+
+        [$schedule, $key] = $this->makeApprovedScheduleWithKey();
+        $key->update(['status' => KeyStatus::Stored]);
+
+        KeyEvent::factory()->create([
+            'key_id' => $key->id,
+            'schedule_id' => null,
+            'status' => KeyStatus::Used->value,
+            'source' => 'iot',
+            'occurred_at' => $schedule->start_time->copy()->subHours(2),
+        ]);
+
+        (new VerifyScheduleKeyUsageJob($schedule))->handle();
+
+        $this->assertSame(ScheduleStatus::Expired, $schedule->fresh()->status);
+    }
+
+    public function test_does_not_adopt_synthetic_orphan_events(): void
+    {
+        Mail::fake();
+        Queue::fake();
+
+        [$schedule, $key] = $this->makeApprovedScheduleWithKey();
+
+        KeyEvent::factory()->synthetic()->create([
+            'key_id' => $key->id,
+            'schedule_id' => null,
+            'status' => KeyStatus::Used->value,
+            'occurred_at' => $schedule->start_time->copy()->subHours(1),
+        ]);
+
+        (new VerifyScheduleKeyUsageJob($schedule))->handle();
+
+        $this->assertSame(ScheduleStatus::Expired, $schedule->fresh()->status);
+    }
+
     public function test_expires_schedule_when_key_not_used(): void
     {
         Mail::fake();

@@ -28,6 +28,7 @@ class Setting extends Model
         'handover_enabled',
         'allow_past_schedule_requests',
         'allow_app_registration',
+        'auto_verify_registration',
         'policy_content',
         'policy_updated_at',
         'reservation_rules_content',
@@ -43,6 +44,7 @@ class Setting extends Model
             'handover_enabled' => 'boolean',
             'allow_past_schedule_requests' => 'boolean',
             'allow_app_registration' => 'boolean',
+            'auto_verify_registration' => 'boolean',
             'policy_updated_at' => 'datetime',
         ];
     }
@@ -73,6 +75,7 @@ class Setting extends Model
             'handover_enabled' => (bool) config('classhub.schedule.handover_enabled', true),
             'allow_past_schedule_requests' => (bool) config('classhub.schedule.allow_past_schedule_requests', false),
             'allow_app_registration' => (bool) config('classhub.schedule.allow_app_registration', true),
+            'auto_verify_registration' => (bool) config('classhub.schedule.auto_verify_registration', false),
             'policy_content' => null,
             'policy_updated_at' => null,
             'reservation_rules_content' => (string) config('classhub.schedule.reservation_rules_content', ''),
@@ -117,6 +120,7 @@ class Setting extends Model
                 'handover_enabled' => (bool) $model->handover_enabled,
                 'allow_past_schedule_requests' => (bool) $model->allow_past_schedule_requests,
                 'allow_app_registration' => (bool) $model->allow_app_registration,
+                'auto_verify_registration' => (bool) $model->auto_verify_registration,
                 'policy_content' => $model->policy_content,
                 'policy_updated_at' => $model->policy_updated_at,
                 'reservation_rules_content' => $model->reservation_rules_content,

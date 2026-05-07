@@ -6,6 +6,7 @@ use App\Filament\Pages\Schemas\FindAvailableRoomsForm;
 use App\Filament\Pages\Schemas\OverrideTemplateForm;
 use App\Filament\Pages\Schemas\RequestScheduleForm;
 use App\Filament\Resources\Schedules\Schemas\ScheduleForm;
+use App\Models\KeyEvent;
 use App\Models\Room;
 use App\Models\Schedule;
 use App\Models\ScheduleHandover;
@@ -254,16 +255,31 @@ class CalendarWidget extends FullCalendarWidget
                     // App panel request flow should only block when an approved schedule exists,
                     // while admin flow keeps stricter overlap checks.
                     if (! empty($data['room_id']) && isset($data['start_time'], $data['end_time'])) {
+                        $startCarbon = Carbon::parse($data['start_time']);
+                        $endCarbon = Carbon::parse($data['end_time']);
+
                         $blockingStatuses = $this->isAppPanel()
                             ? [ScheduleStatus::Approved]
                             : [ScheduleStatus::Approved, ScheduleStatus::Pending];
 
+                        $templateIdsToIgnore = $this->isAppPanel()
+                            ? Schedule::query()
+                                ->where('room_id', $data['room_id'])
+                                ->where('type', ScheduleType::Template)
+                                ->where('status', ScheduleStatus::Approved)
+                                ->where('start_time', '<', $endCarbon)
+                                ->where('end_time', '>', $startCarbon)
+                                ->pluck('id')
+                                ->all()
+                            : [];
+
                         if (
                             ScheduleOverlapChecker::hasOverlap(
                                 $data['room_id'],
-                                Carbon::parse($data['start_time']),
-                                Carbon::parse($data['end_time']),
-                                $blockingStatuses
+                                $startCarbon,
+                                $endCarbon,
+                                $blockingStatuses,
+                                excludeIds: $templateIdsToIgnore
                             )
                         ) {
                             $conflictMessage = $this->isAppPanel()
@@ -287,7 +303,8 @@ class CalendarWidget extends FullCalendarWidget
                 ->action(function (array $data, $livewire) {
                     $this->ensurePastScheduleAllowed($data);
 
-                    unset($data['duration_minutes']);
+                    $linkKeyEventId = $data['link_key_event_id'] ?? null;
+                    unset($data['duration_minutes'], $data['link_key_event_id']);
 
                     // Admin panel schedules are auto-approved, app panel creates pending
                     if ($this->isAdminPanel()) {
@@ -298,6 +315,12 @@ class CalendarWidget extends FullCalendarWidget
                     }
 
                     $schedule = Schedule::create($data);
+
+                    if ($linkKeyEventId) {
+                        KeyEvent::where('id', $linkKeyEventId)
+                            ->whereNull('schedule_id')
+                            ->update(['schedule_id' => $schedule->id]);
+                    }
 
                     // Send notification if a pending schedule was created (app panel)
                     if (! $this->isAdminPanel() && $schedule->status === ScheduleStatus::Pending) {
@@ -473,7 +496,7 @@ class CalendarWidget extends FullCalendarWidget
         // Schema is built before mountUsing runs, so compute matching pendings from current action args when available
         $matchingPendings = $this->getMatchingPendingSchedulesForSchema();
         $selectedSlotRoomId = $this->getSelectedSlotRoomIdForSchema();
-        $schema = ScheduleForm::configure(Schema::make(), $matchingPendings, $selectedSlotRoomId);
+        $schema = ScheduleForm::configure(Schema::make()->livewire($this), $matchingPendings, $selectedSlotRoomId);
 
         return $schema->getComponents();
     }
@@ -1309,6 +1332,15 @@ class CalendarWidget extends FullCalendarWidget
         if ($targetRoomId !== null && $schedule->room_id !== $targetRoomId) {
             $startCarbon = Carbon::parse($schedule->start_time);
             $endCarbon = Carbon::parse($schedule->end_time);
+ 
+            $templateIdsInTarget = Schedule::query()
+                ->where('room_id', $targetRoomId)
+                ->where('type', ScheduleType::Template)
+                ->where('status', ScheduleStatus::Approved)
+                ->where('start_time', '<', $endCarbon)
+                ->where('end_time', '>', $startCarbon)
+                ->pluck('id')
+                ->all();
             // When moving a pending to the selected room, only Approved schedules block; other Pendings in that slot are competing requests we are resolving by approving this one.
             if (
                 ScheduleOverlapChecker::hasOverlap(
@@ -1316,7 +1348,8 @@ class CalendarWidget extends FullCalendarWidget
                     $startCarbon,
                     $endCarbon,
                     [ScheduleStatus::Approved],
-                    excludeId: $schedule->id
+                    excludeId: $schedule->id,
+                    excludeIds: $templateIdsInTarget
                 )
             ) {
                 Notification::make()
@@ -1333,13 +1366,23 @@ class CalendarWidget extends FullCalendarWidget
         $finalRoomId = $schedule->room_id;
         $startCarbon = Carbon::parse($schedule->start_time);
         $endCarbon = Carbon::parse($schedule->end_time);
+ 
+        $templateIdsToIgnore = Schedule::query()
+            ->where('room_id', $finalRoomId)
+            ->where('type', ScheduleType::Template)
+            ->where('status', ScheduleStatus::Approved)
+            ->where('start_time', '<', $endCarbon)
+            ->where('end_time', '>', $startCarbon)
+            ->pluck('id')
+            ->all();
         if (
             ScheduleOverlapChecker::hasOverlap(
                 $finalRoomId,
                 $startCarbon,
                 $endCarbon,
                 [ScheduleStatus::Approved],
-                excludeId: $schedule->id
+                excludeId: $schedule->id,
+                excludeIds: $templateIdsToIgnore
             )
         ) {
             Notification::make()

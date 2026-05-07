@@ -43,9 +43,27 @@ class FindAvailableRoomsForm
                         ->live(),
                     Select::make('duration_minutes')
                         ->label('Duration')
-                        ->options(fn (Get $get): array => Filament::getCurrentPanel()?->getId() === 'app'
-                            ? ScheduleFormOptions::appDurationOptions($get('start_time'))
-                            : ScheduleFormOptions::durationMinutesOptions())
+                        ->options(function (Get $get): array {
+                            $options = Filament::getCurrentPanel()?->getId() === 'app'
+                                ? ScheduleFormOptions::appDurationOptions($get('start_time'))
+                                : ScheduleFormOptions::durationMinutesOptions();
+
+                            $current = $get('duration_minutes');
+
+                            if ($current !== null && $current !== '' && ! array_key_exists((int) $current, $options)) {
+                                $currentInt = (int) $current;
+                                $label = match (true) {
+                                    $currentInt < 60 => "{$currentInt} minutes",
+                                    $currentInt % 60 === 0 => (int) ($currentInt / 60).' '.str('hour')->plural((int) ($currentInt / 60)),
+                                    default => (int) ($currentInt / 60).'.5 hours',
+                                };
+
+                                $options[$currentInt] = $label;
+                                ksort($options);
+                            }
+
+                            return $options;
+                        })
                         ->default(60)
                         ->required(),
                 ])
