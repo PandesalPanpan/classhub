@@ -7,6 +7,7 @@ use App\Models\Key;
 use App\Models\KeyEvent;
 use App\Models\Schedule;
 use App\ScheduleStatus;
+use App\ScheduleType;
 use App\Services\KeyNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -166,13 +167,15 @@ class KeyController extends Controller
     }
 
     /**
-     * Find the currently active approved schedule for the key's room, if any.
+     * Find the currently active approved REQUEST schedule for the key's room, if any.
+     * Template schedules are intentionally excluded — key tracking only applies to real bookings.
      */
     private function findActiveScheduleFor(Key $key): ?Schedule
     {
         return Schedule::query()
             ->where('room_id', $key->room_id)
             ->where('status', ScheduleStatus::Approved)
+            ->where('type', ScheduleType::Request)
             ->where('start_time', '<=', now())
             ->where('end_time', '>=', now())
             ->first();
