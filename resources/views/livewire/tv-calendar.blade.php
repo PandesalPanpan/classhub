@@ -5,10 +5,10 @@
     data-events="{{ json_encode($events) }}"
 >
     <div id="tv-calendar-header" class="w-full shrink-0 flex items-center justify-between px-4 py-2" style="background-color: #800000;" wire:ignore>
-        <p style="margin: 0; color: #ffffff; font-size: 16px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;">
+        <p style="margin: 0; color: #ffffff; font-size: clamp(20px, 2.5vw, 28px); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;">
             ClassHub &mdash; Room Schedule
         </p>
-        <p id="tv-calendar-date" style="margin: 0; color: #FFDF00; font-size: 16px; font-weight: 700;"></p>
+        <p id="tv-calendar-date" style="margin: 0; color: #FFDF00; font-size: clamp(20px, 2.5vw, 28px); font-weight: 700;"></p>
     </div>
     <div id="tv-calendar" class="w-full flex-1 min-h-0" wire:ignore></div>
 </div>
